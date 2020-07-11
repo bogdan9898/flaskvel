@@ -2,11 +2,11 @@ from functools import wraps
 from flask import request
 
 from .Constants.BodyFormat import BodyFormats
-from .ValidationException import ValidationException
 from .Parsers.ArrayParser import ArrayParser
 from .Parsers.PipedStringParser import PipedStringParser
 from .Processor import Processor
 from .ParsedRule import ParsedRule
+from .Exceptions.ValidationException import ValidationException
 
 class Validator:
 	def __init__(self, body_format, methods):
@@ -31,11 +31,12 @@ class Validator:
 		return self._registered_handlers
 
 	def validate(self):
+		if not hasattr(self, '_processor'):
+			raise Exception("Base validator not initialized. Most probably you forgot to call super().__init__(*args, **kwargs) inside your validator class.")
 		if not self.validate_method():
 			return # validation passed
 		self.validate_body_format()
 		self.parse_rules()
-		# print(self._parsed_rules)
 		result = self._processor.run()
 		print(result)
 		print(self._processor.get_failed_validations())

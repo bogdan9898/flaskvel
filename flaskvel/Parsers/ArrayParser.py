@@ -5,6 +5,9 @@ class ArrayParser():
 	def parse(rules):
 		parsed_rules = []
 		for rule in rules:
+			if callable(rule):
+				parsed_rules.append(ParsedRule(rule))
+				continue
 			tmp = rule.split(":")
 			predicate = tmp[0]
 			params = []

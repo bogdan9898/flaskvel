@@ -1,4 +1,4 @@
-from .ValidationException import ValidationException
+from .Exceptions.ValidationException import ValidationException
 
 
 class Flaskvel():
