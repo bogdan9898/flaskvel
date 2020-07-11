@@ -7,6 +7,6 @@ class ValidationException(Exception):
 
 	def pretty_print(self):
 		return jsonify({
-			'status': 'Validation error',
+			'status': 'Validation failure',
 			'errors': self._message
 		})

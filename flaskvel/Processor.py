@@ -17,7 +17,7 @@ class Processor():
 		return self._failed_validations
 
 	def run(self):
-		ignore_predicates = [RulesPredicates.NULLABLE, RulesPredicates.BAIL]
+		ignored_predicates = [RulesPredicates.NULLABLE, RulesPredicates.BAIL]
 
 		validation_passed = True
 		for field_name, rules in self._parsed_rules.items():
@@ -30,7 +30,7 @@ class Processor():
 			for parsed_rule in rules:
 				rule_predicate = parsed_rule.get_predicate()
 				params = parsed_rule.get_params()
-				if rule_predicate in ignore_predicates:
+				if rule_predicate in ignored_predicates:
 					continue
 				
 				handler = None
