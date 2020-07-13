@@ -38,12 +38,10 @@ class Validator:
 		self.validate_body_format()
 		self.parse_rules()
 		result = self._processor.run()
-		print(result)
+		print("Validation result: {0}".format(result))
 		print(self._processor.get_failed_validations())
-		print(self._processor.get_errors())
 		if not result:
 			raise ValidationException(self._processor.get_errors())
-
 
 	def validate_method(self):
 		return self._methods == "*" or request.method in self._methods

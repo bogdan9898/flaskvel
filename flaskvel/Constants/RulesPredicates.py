@@ -46,7 +46,6 @@ class RulesPredicates():
 	NOT_REGEX = 'not_regex'
 	NULLABLE = 'nullable'
 	NUMERIC = 'numeric'
-	PASSWORD = 'password'
 	PRESENT = 'present'
 	REGEX = 'regex'
 	REQUIRED = 'required'

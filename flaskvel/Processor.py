@@ -1,9 +1,11 @@
 import re
 from dateutil.parser import parse as parse_date
 from flask import request
+from werkzeug.datastructures import FileStorage # comes packaged with flask
 
 from .Constants.RulesPredicates import RulesPredicates
 from .Constants.DefaultMessages import DefaultMessages
+from .Constants.FieldTypes import FieldTypes
 
 class Processor():
 	def __init__(self, validator):
@@ -30,6 +32,9 @@ class Processor():
 			nullable = self.is_field_nullable(rules)
 			bail = self.should_bail(rules)
 
+			if field_value == None and nullable:
+				continue
+
 			for parsed_rule in rules:
 				rule_predicate = parsed_rule.get_predicate()
 				params = parsed_rule.get_params()
@@ -43,7 +48,7 @@ class Processor():
 				else:
 					handler = self.get_rule_handler(rule_predicate)
 
-				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable):
+				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable, bail=bail, processor=self):
 					validation_passed = False
 
 					failed_validations[rule_predicate] = params
@@ -53,13 +58,52 @@ class Processor():
 			if len(failed_validations) > 0:
 				self._failed_validations[field_name] = failed_validations
 				self._errors[field_name] = self.generate_errors(field_name)
+
+			# DELETE ME!
+			field_type = self.get_field_type(field_name)
+			print("{0} -> {1} / {2}".format(field_name, field_type, type(self.get_field_value(field_name))))
+			# DELETE ME!
 		return validation_passed
 
+	def get_field_type(self, field_name):
+		rules = self._parsed_rules[field_name]
+		types_requirements = {
+			FieldTypes.NUMERIC: ['integer', 'numeric'],
+			FieldTypes.FILE: ['file', 'image', 'dimensions'],
+			FieldTypes.STRING: ['string', 'alpha', 'alpha_dash'],
+			FieldTypes.ARRAY: ['array'],
+		}
+		for field_type, requirements in types_requirements.items():
+			for requirement in requirements:
+				if requirement in rules:
+					return field_type
+
+		field_value = self.get_field_value(field_name)
+		if isinstance(field_value, int) or isinstance(field_value, float):
+			return FieldTypes.NUMERIC
+
+		if isinstance(field_value, str):
+			return FieldTypes.STRING
+
+		if isinstance(field_value, list):
+			return FieldTypes.ARRAY
+
+		if isinstance(field_value, FileStorage):
+			return FieldTypes.FILE
+
+		return FieldTypes.UNKOWN
+
 	def get_field_value(self, field_name):
-		if request.is_json:
-			return request.json.get(field_name)
-		else:
-			return request.form.get(field_name)
+		if field_name in request.files:
+			return request.files.get(field_name)
+
+		result = request.json if request.is_json else request.form
+		keys = field_name.split('.')
+		for key in keys:
+			result = result.get(key)
+			if not result:
+				return None
+		return result
 
 	def is_field_nullable(self, rules):
 		imply_nullable = [
@@ -80,19 +124,25 @@ class Processor():
 		return RulesPredicates.BAIL in rules
 
 	def generate_errors(self, field_name):
+		comparison_messages = ['between', 'gt', 'gte', 'lt', 'lte', 'max', 'min', 'size']
 		errors_strings = []
-		for rule_predicates, params in self._failed_validations[field_name].items():
-			message = (self._messages.get('{0}:{1}'.format(field_name, rule_predicates)) or
-					DefaultMessages.get(rule_predicates))
+		field_type = self.get_field_type(field_name)
+		for rule_predicate, params in self._failed_validations[field_name].items():
+			message = self._messages.get('{0}:{1}'.format(field_name, rule_predicate))
 
 			if not message:
-				errors_strings.append('Validation failed for: ' + str(rule_predicates))
+				message = DefaultMessages.get(rule_predicate)
+				if message and (rule_predicate in comparison_messages):
+					message = message.get(field_type)
+
+			if not message:
+				errors_strings.append('Validation failed for: ' + str(rule_predicate))
 			else:
 				errors_strings.append(message.format(*params, field_name=field_name, all_params=params))
 
 		return errors_strings
 
-	def assert_params_len(self, params, required_size, rule_predicate):
+	def assert_params_count(self, params, required_size, rule_predicate):
 		if len(params) < required_size:
 			raise Exception('Rule <{0}> requires at least {1} parameter'.format(rule_predicate, required_size))
 
@@ -112,40 +162,52 @@ class Processor():
 		pass
 
 	def handler_after(self, **kwargs):
-		self.assert_params_len(kwargs['params'], 1, 'after')
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER)
 		try:
 			return parse_date(kwargs['value']) > parse_date(kwargs['params'][0])
 		except Exception:
 			return False
 
 	def handler_after_or_equal(self, **kwargs):
-		self.assert_params_len(kwargs['params'], 1, 'after_or_equal')
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) >= parse_date(kwargs['params'][0])
 		except Exception:
 			return False
 
 	def handler_alpha(self, **kwargs):
-		pass
+		patern = re.compile("^[a-z\s]*$", re.IGNORECASE)
+		try:
+			return patern.match(kwargs['value'])
+		except:
+			return False
 
 	def handler_alpha_dash(self, **kwargs):
-		pass
+		patern = re.compile("^[a-z\-_\s]*$", re.IGNORECASE)
+		try:
+			return patern.match(kwargs['value'])
+		except:
+			return False
 
 	def handler_alpha_num(self, **kwargs):
-		pass
+		patern = re.compile("^[a-z0-9\s]*$", re.IGNORECASE)
+		try:
+			return patern.match(kwargs['value'])
+		except:
+			return False
 
 	def handler_array(self, **kwargs):
-		pass
+		return isinstance(kwargs['value'], list)
 
 	def handler_before(self, **kwargs):
-		self.assert_params_len(kwargs['params'], 1, 'before')
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE)
 		try:
 			return parse_date(kwargs['value']) < parse_date(kwargs['params'][0])
 		except Exception:
 			return False
 
 	def handler_before_or_equal(self, **kwargs):
-		self.assert_params_len(kwargs['params'], 1, 'before_or_equal')
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) <= parse_date(kwargs['params'][0])
 		except Exception:
@@ -155,13 +217,16 @@ class Processor():
 		pass
 
 	def handler_boolean(self, **kwargs):
-		pass
+		return kwargs['value'] in [1, 0, '1', '0', True, False]
 
 	def handler_confirmed(self, **kwargs):
-		pass
+		return kwargs['value'] == self.get_field_value("{0}_confirmed".format(kwargs['field_name']))
 
 	def handler_date(self, **kwargs):
-		pass
+		try:
+			return parse_date(kwargs['value'])
+		except:
+			return False
 
 	def handler_date_equals(self, **kwargs):
 		pass
@@ -186,13 +251,16 @@ class Processor():
 
 	def handler_email(self, **kwargs):
 		pattern = re.compile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", re.IGNORECASE)
-		return pattern.match(str(kwargs['value'])) is not None
+		try:
+			return pattern.match(str(kwargs['value'])) is not None
+		except:
+			return False
 
 	def handler_ends_with(self, **kwargs):
 		pass
 
 	def handler_file(self, **kwargs):
-		pass
+		return isinstance(kwargs['value'], FileStorage)
 
 	def handler_filled(self, **kwargs):
 		pass
@@ -225,7 +293,7 @@ class Processor():
 		pass
 
 	def handler_json(self, **kwargs):
-		pass
+		return isinstance(kwargs['value'], dict)
 
 	def handler_lt(self, **kwargs):
 		pass
@@ -251,11 +319,18 @@ class Processor():
 	def handler_numeric(self, **kwargs):
 		pass
 
-	def handler_password(self, **kwargs):
-		pass
-
 	def handler_present(self, **kwargs):
-		pass
+		field_name = kwargs['field_name']
+		if field_name in request.files:
+			return True
+
+		result = request.json if request.is_json else request.form
+		keys = field_name.split('.')
+		for key in keys:
+			if key not in result:
+				return False
+			result = result[key]
+		return True
 
 	def handler_regex(self, **kwargs):
 		pass
@@ -285,7 +360,13 @@ class Processor():
 		pass
 
 	def handler_same(self, **kwargs):
-		pass
+		value1 = kwargs['value']
+		params = kwargs['params']
+		for param in params:
+			value2 = self.get_field_value(param)
+			if not value1 == value2:
+				return False
+		return True
 
 	def handler_size(self, **kwargs):
 		pass

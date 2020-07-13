@@ -1,5 +1,7 @@
-from .Exceptions.ValidationException import ValidationException
+import traceback
+from werkzeug.exceptions import BadRequest
 
+from .Exceptions.ValidationException import ValidationException
 
 class Flaskvel():
 	error_code = 400
@@ -10,7 +12,15 @@ class Flaskvel():
 			exception_class,
 			Flaskvel.error_handler
 		)
+		app.register_error_handler(
+			BadRequest,
+			Flaskvel.error_handler
+		)
 
 	@staticmethod
 	def error_handler(exception):
-		return exception.pretty_print(), Flaskvel.error_code
+		if isinstance(exception, ValidationException):
+			return exception.pretty_print(), Flaskvel.error_code
+		else:
+			traceback.print_exc()
+			return exception, Flaskvel.error_code

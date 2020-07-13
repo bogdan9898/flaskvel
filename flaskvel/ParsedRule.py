@@ -14,6 +14,11 @@ class ParsedRule():
 			'params': self._params
 		})
 
+	def __eq__(self, other):
+		if isinstance(other, str) or callable(other):
+			return self._predicate == other
+		return False
+
 	def get_predicate(self):
 		return self._predicate
 
