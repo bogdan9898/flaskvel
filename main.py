@@ -4,7 +4,7 @@ from flaskvel import Flaskvel, validate, BodyFormats, ValidationException
 from MyValidator import MyValidator
 
 app = Flask(__name__)
-# todo: introduce a way to change err messages lang easly
+# todo: add DefaultMessages translation units
 # Flaskvel(app)
 Flaskvel(app, exception_class=ValidationException, error_code=400)
 
