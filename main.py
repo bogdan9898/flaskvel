@@ -5,7 +5,6 @@ from MyValidator import MyValidator
 
 app = Flask(__name__)
 # todo: add DefaultMessages translation units
-# Flaskvel(app)
 Flaskvel(app, exception_class=ValidationException, error_code=400)
 
 @app.route("/", methods=["GET"])
