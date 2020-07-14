@@ -82,11 +82,11 @@ DefaultMessages = {
     'present': 'The {field_name} field must be present.',
     'regex': 'The {field_name} format is invalid.',
     'required': 'The {field_name} field is required.',
-    'required_if': 'The {field_name} field is required when {0} is {1}.',
-    'required_unless': 'The {field_name} field is required unless {0} is {1}.',
-    'required_with': 'The {field_name} field is required when {all_params} is present.',
-    'required_with_all': 'The {field_name} field is required when {all_params} are present.',
-    'required_without': 'The {field_name} field is required when {all_params} is not present.',
+    'required_if': 'The {field_name} field is required when {0} field is one of {the_rest_of_params}.', # todo: find a way to print params[1:]
+    'required_unless': 'The {field_name} field is required unless {0} field is one of the values {the_rest_of_params}.', # same as above
+    'required_with': 'The {field_name} field is required when any of {all_params} is present.',
+    'required_with_all': 'The {field_name} field is required when all of {all_params} are present.',
+    'required_without': 'The {field_name} field is required when any of {all_params} is not present.',
     'required_without_all': 'The {field_name} field is required when none of {all_params} are present.',
     'same': 'The {field_name} and {all_params} must match.',
     'size': {
@@ -100,14 +100,6 @@ DefaultMessages = {
     'timezone': 'The {field_name} must be a valid zone.',
     'url': 'The {field_name} format is invalid.',
     'uuid': 'The {field_name} must be a valid UUID.',
-
-	# 'required': 'The {field_name} is required',
-	# 'confirmed': 'You must confirm the {field_name}',
-	# 'email': 'The {field_name} must be a valid email',
-	# 'string': 'The {field_name} must be a valid string',
-	# 'integer': 'The {field_name} must be a valid integer',
-	# 'date': 'The {field_name} must be a valid date',
-	# 'eq': 'The {field_name} must be equal to {0}',
 
 }
 

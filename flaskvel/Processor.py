@@ -8,12 +8,24 @@ from .Constants.DefaultMessages import DefaultMessages
 from .Constants.FieldTypes import FieldTypes
 
 class Processor():
+	null_intolerant_rules = [ # todo: move this into Flaskvel class with regitered_handlers 
+		RulesPredicates.REQUIRED,
+		RulesPredicates.REQUIRED_IF,
+		RulesPredicates.REQUIRED_UNLESS,
+		RulesPredicates.REQUIRED_WITH,
+		RulesPredicates.REQUIRED_WITH_ALL,
+		RulesPredicates.REQUIRED_WITHOUT,
+		RulesPredicates.REQUIRED_WITHOUT_ALL,
+		RulesPredicates.PRESENT
+	]
+
 	def __init__(self, validator):
-		self._parsed_rules = validator.get_parsed_rules()
+		self._validator = validator
 		self._errors = {} # error messages already formated
 		self._failed_validations = {} # info about failed validations
-		self._registered_handlers = validator.get_registered_handlers()
-		self._messages = validator.get_messages()
+		self._parsed_rules = None
+		self._registered_handlers = None
+		self._messages = None
 
 	def get_errors(self):
 		return self._errors
@@ -22,6 +34,14 @@ class Processor():
 		return self._failed_validations
 
 	def run(self):
+		# update critical data
+		if self._messages is None:
+			self._messages = self._validator.get_messages()
+		if self._parsed_rules is None:
+			self._parsed_rules = self._validator.get_parsed_rules()
+		if self._registered_handlers is None:
+			self._registered_handlers = self._validator.get_registered_handlers()
+
 		ignored_predicates = [RulesPredicates.NULLABLE, RulesPredicates.BAIL]
 
 		validation_passed = True
@@ -32,13 +52,11 @@ class Processor():
 			nullable = self.is_field_nullable(rules)
 			bail = self.should_bail(rules)
 
-			if field_value == None and nullable:
-				continue
-
 			for parsed_rule in rules:
 				rule_predicate = parsed_rule.get_predicate()
 				params = parsed_rule.get_params()
-				if rule_predicate in ignored_predicates:
+				if ((rule_predicate in ignored_predicates) or
+					(nullable and field_value is None and not rule_predicate in Processor.null_intolerant_rules)):
 					continue
 				
 				handler = None
@@ -48,13 +66,15 @@ class Processor():
 				else:
 					handler = self.get_rule_handler(rule_predicate)
 
-				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable, bail=bail, processor=self):
+				err_msg_params = {}
+				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable, bail=bail, err_msg_params=err_msg_params, processor=self):
 					validation_passed = False
-
-					failed_validations[rule_predicate] = params
+					failed_validations[rule_predicate] = [params, err_msg_params]
 					if bail:
 						self._failed_validations[field_name] = failed_validations
+						self._errors[field_name] = self.generate_errors(field_name)
 						return validation_passed
+
 			if len(failed_validations) > 0:
 				self._failed_validations[field_name] = failed_validations
 				self._errors[field_name] = self.generate_errors(field_name)
@@ -128,7 +148,8 @@ class Processor():
 		errors_strings = []
 		field_type = self.get_field_type(field_name)
 		for rule_predicate, params in self._failed_validations[field_name].items():
-			message = self._messages.get('{0}:{1}'.format(field_name, rule_predicate))
+			params, err_msg_params = params
+			message = self._messages.get('{0}.{1}'.format(field_name, rule_predicate))
 
 			if not message:
 				message = DefaultMessages.get(rule_predicate)
@@ -138,7 +159,7 @@ class Processor():
 			if not message:
 				errors_strings.append('Validation failed for: ' + str(rule_predicate))
 			else:
-				errors_strings.append(message.format(*params, field_name=field_name, all_params=params))
+				errors_strings.append(message.format(*params, field_name=field_name, **err_msg_params))
 
 		return errors_strings
 
@@ -165,14 +186,14 @@ class Processor():
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER)
 		try:
 			return parse_date(kwargs['value']) > parse_date(kwargs['params'][0])
-		except Exception:
-			return False
+		except:
+			return False 
 
 	def handler_after_or_equal(self, **kwargs):
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) >= parse_date(kwargs['params'][0])
-		except Exception:
+		except:
 			return False
 
 	def handler_alpha(self, **kwargs):
@@ -197,20 +218,21 @@ class Processor():
 			return False
 
 	def handler_array(self, **kwargs):
+		# todo: validate strings that match [.+(,\w+)*]
 		return isinstance(kwargs['value'], list)
 
 	def handler_before(self, **kwargs):
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE)
 		try:
 			return parse_date(kwargs['value']) < parse_date(kwargs['params'][0])
-		except Exception:
+		except:
 			return False
 
 	def handler_before_or_equal(self, **kwargs):
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) <= parse_date(kwargs['params'][0])
-		except Exception:
+		except:
 			return False
 
 	def handler_between(self, **kwargs):
@@ -234,7 +256,7 @@ class Processor():
 	def handler_date_format(self, **kwargs):
 		pass
 
-	def handler_diferent(self, **kwargs):
+	def handler_different(self, **kwargs):
 		pass
 
 	def handler_digits(self, **kwargs):
@@ -252,11 +274,13 @@ class Processor():
 	def handler_email(self, **kwargs):
 		pattern = re.compile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", re.IGNORECASE)
 		try:
-			return pattern.match(str(kwargs['value'])) is not None
+			return pattern.match(kwargs['value']) is not None
 		except:
 			return False
 
 	def handler_ends_with(self, **kwargs):
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
 		pass
 
 	def handler_file(self, **kwargs):
@@ -321,7 +345,11 @@ class Processor():
 		pass
 
 	def handler_numeric(self, **kwargs):
-		pass
+		try:
+			float(kwargs['value'])
+			return True
+		except:
+			return False
 
 	def handler_present(self, **kwargs):
 		field_name = kwargs['field_name']
@@ -343,32 +371,64 @@ class Processor():
 		return kwargs['value'] != None
 
 	def handler_required_if(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
+		other_value = self.get_field_value(params[0])
+		# if not other_value in params[1:]:
+		# 	return True
+		# else:
+		# 	return kwargs['value'] is not None
+		return not other_value in params[1:] or kwargs['value'] is not None
 
 	def handler_required_unless(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
+		other_value = self.get_field_value(params[0])
+		# if other_value in params[1:]:
+		# 	return True
+		# else:
+		# 	return kwargs['value'] is not None
+		return other_value in params[1:] or kwargs['value'] is not None
 
 	def handler_required_with(self, **kwargs):
-		pass
-
-	def handler_required_with(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
+		for field in params:
+			if self.get_field_value(field) is not None:
+				return kwargs['value'] is not None
+		return True
 
 	def handler_required_with_all(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
+		for field in params:
+			if self.get_field_value(field) is None:
+				return True
+		return kwargs['value'] is not None
 
 	def handler_required_without(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
+		for field in params:
+			if self.get_field_value(field) is None:
+				return kwargs['value'] is not None
+		return True
 
 	def handler_required_without_all(self, **kwargs):
-		pass
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
+		for field in params:
+			if self.get_field_value(field) is not None:
+				return True
+		return kwargs['value'] is not None
 
 	def handler_same(self, **kwargs):
-		value1 = kwargs['value']
+		value = kwargs['value']
 		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
 		for param in params:
-			value2 = self.get_field_value(param)
-			if not value1 == value2:
+			other_value = self.get_field_value(param)
+			if not value == other_value:
 				return False
 		return True
 
@@ -376,6 +436,8 @@ class Processor():
 		pass
 
 	def handler_starts_with(self, **kwargs):
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
 		pass
 
 	def handler_string(self, **kwargs):

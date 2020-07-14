@@ -39,7 +39,7 @@ class RulesPredicates():
 	JSON = 'json'
 	LT = 'lt'
 	LTE = 'lte'
-	MAX = ' max'
+	MAX = 'max'
 	MIMETYPES = 'mimetypes'
 	MIN = 'min'
 	NOT_IN = 'not_in'
