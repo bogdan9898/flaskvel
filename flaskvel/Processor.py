@@ -281,7 +281,11 @@ class Processor():
 		pass
 
 	def handler_integer(self, **kwargs):
-		pass
+		try:
+			int(kwargs['value'])
+			return True
+		except:
+			return False
 
 	def handler_ip(self, **kwargs):
 		pass

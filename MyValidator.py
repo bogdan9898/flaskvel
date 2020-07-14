@@ -21,7 +21,8 @@ class MyValidator(Validator):
 			'same1': Rules.STRING,
 			'same2': Rules.STRING,
 			'same3': Rules.STRING,
-			'same4': [Rules.STRING, "same:same1,same2"]
+			'same4': [Rules.STRING, "same:same1,same2"],
+			'integer_test': Rules.INTEGER
 		}
 
 	def confirm(self, **kwargs):
