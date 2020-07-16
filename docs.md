@@ -57,8 +57,8 @@
 ### date_format:*format*
 - The field under validation must match the given *format*. You should use either date or date_format when validating a field, not both. This validation rule supports all formats supported by ______.
 
-### different:*field*
-- The field under validation must have a different value than *field*.
+### different:*foo,bar,...*
+- The field under validation must have a different value than the given *fields*.
 
 ### digits:*value*
 - The field under validation must be *numeric* and must have an exact length of *value*.
@@ -67,7 +67,7 @@
 - The field under validation must have a length between the given *min* and *max*.
 
 ### dimensions:*WidthxHeight*
-The file under validation must be an image meeting the dimension constraints specified as `WidthxHeight`
+- The file under validation must be an image meeting the dimension constraints specified as `WidthxHeight`
 ```python
 'avatar': ['dimensions:200x200']
 ```
@@ -90,72 +90,128 @@ The file under validation must be an image meeting the dimension constraints spe
 ### gt:*field*
 - The field under validation must be greater than the given *field*. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [size](#size) rule.
 
-### gte
+### gte:*field*
 - The field under validation must be greater than or equal to the given *field*. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [size](#size) rule.
 
 ### image
 - The file under validation must be an image (jpeg, png, bmp, gif, svg, or webp)
 
-### in
+### in:*foo, bar,...*
+- The field under validation must be included in the given list of values.
 
-### in_array
+### in_array:*another_field*
+- The field under validation must exist in *another_field*'s values.
 
 ### integer
+- The field under validation must be an integer.
 
 ### ip
+- The field under validation must be an IP address.
 
 ### ipv4
+- The field under validation must be an IPv4 address.
 
 ### ipv6
+- The field under validation must be an IPv6 address.
 
 ### json
+- The field under validation must be a valid JSON string.
 
-### lt
+### lt:*field*
+- The field under validation must be less than the given *field*. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [size](#size) rule.
 
-### lte
+### lte:*field*
+- The field under validation must be less than or equal to the given *field*. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [size](#size) rule.
 
-### max
+### max:*value*
+- The field under validation must be less than or equal to a maximum *value*. Strings, numerics, arrays, and files are evaluated in the same fashion as the [size](#size) rule.
 
-### mimetypes
+### mimetypes:*text/plain,...*
+- The file under validation must match one of the given MIME types:
+```python
+'video': 'mimetypes:video/avi,video/mpeg,video/quicktime'
+```
+- To determine the MIME type of the uploaded file, the file's contents will be read and the framework will attempt to guess the MIME type, which may be different from the client provided MIME type.
 
-### min
+### min:*value*
+- The field under validation must have a minimum *value*. Strings, numerics, arrays, and files are evaluated in the same fashion as the [size](#size) rule.
 
-### not_in
+### not_in:*foo,bar,...*
+- The field under validation must not be included in the given list of values.
 
-### not_regex
+### not_regex:*pattern*
+- The field under validation must not match the given regular expression.
 
+- **Note**: When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
+  
 ### nullable
+- The field under validation may be `None`. This is particularly useful when validating primitive such as strings and integers that can contain `None` values.
 
 ### numeric
+- The field under validation must be numeric.
 
 ### present
+- The field under validation must be present in the input data but can be empty.
 
-### regex
+### regex:*pattern*
+- The field under validation must match the given regular expression.
+
+- **Note**: When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
 
 ### required
+- The field under validation must be present in the input data and not empty. A field is considered "empty" if one of the following conditions are true:
 
-### required_if
+    - The value is `None`.
+    - The value is an empty string.
+    - The value is an empty array.
 
-### required_unless
+### required_if:*another_field,value1,value2,...*
+- The field under validation must be present and not empty *if* the *another_field* field is equal to any *value*.
 
-### required_with
+### required_unless:*another_field,value1,value2,...*
+- The field under validation must be present and not empty *unless* the *another_field* field is equal to any *value*.
 
-### required_with_all
+### required_with:*foo,bar,...*
+- The field under validation must be present and not empty *only if any* of the other specified fields are present.
 
-### required_without
+### required_with_all:*foo,bar,...*
+- The field under validation must be present and not empty *only when any* of the other specified fields are not present.
 
-### required_without_all
+### required_without:*foo,bar,...*
+- The field under validation must be present and not empty *only when all* of the other specified fields are not present.
 
-### same
+### required_without_all:*foo,bar,...*
+- The field under validation must be present and not empty *only when all* of the other specified fields are not present.
 
-### size
+### same:*foo,bar,..*
+- The given *fields* must match the field under validation.
 
-### starts_with
+### size:*value*
+- The field under validation must have a size matching the given *value*. For string data, *value* corresponds to the number of characters. For numeric data, value corresponds to a given integer *value* (the attribute must also have the [numeric](#numeric) or [integer](#integer) rule). For an array, size corresponds to the count of the array. For files, *size* corresponds to the file size in kilobytes.
+```python
+# Validate that a string is exactly 12 characters long...
+'title' => 'size:12'
+
+# Validate that a provided integer equals 10...
+'seats' => 'integer|size:10'
+
+# Validate that an array has exactly 5 elements...
+'tags' => 'array|size:5'
+
+# Validate that an uploaded file is exactly 512 kilobytes...
+'image' => 'file|size:512'
+```
+### starts_with:*foo,bar,...*
+- The field under validation must start with one of the given values.
 
 ### string
+- The field under validation must be a string. If you would like to allow the field to also be `None`, you should assign the [nullable](#nullable) rule to the field.
 
 ### timezone
+- The field under validation must be a valid timezone identifier according to the `pytz` Python package.
 
 ### url
+- The field under validation must be a valid URL.
 
 ### uuid
+- The field under validation must be a valid RFC 4122 (version 1, 3, 4, or 5) universally unique identifier (UUID).

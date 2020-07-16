@@ -257,6 +257,7 @@ class Processor():
 		pass
 
 	def handler_different(self, **kwargs):
+		# todo: support more than one field (like same rule)
 		pass
 
 	def handler_digits(self, **kwargs):
