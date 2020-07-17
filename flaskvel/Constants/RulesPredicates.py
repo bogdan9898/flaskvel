@@ -43,6 +43,7 @@ class RulesPredicates():
 	MIMETYPES = 'mimetypes'
 	MIN = 'min'
 	NOT_IN = 'not_in'
+	NOT_IN_ARRAY = 'not_in_array'
 	NOT_REGEX = 'not_regex'
 	NULLABLE = 'nullable'
 	NUMERIC = 'numeric'

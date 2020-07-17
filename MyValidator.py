@@ -14,10 +14,12 @@ class MyValidator(Validator):
 			'sector': [Rules.STRING, "required_if:oras,bucharest,bucuresti"],
 			'judet': [Rules.STRING, "required_unless:oras,bucharest,bucuresti"],
 			
+			'date': [ Rules.DATE, 'date_format:%d-%m-%Y' ],
 			'after_date': ['after:2020-07-10'],
 			'after_eq_date': ['after_or_equal:2020-07-10'],
 			'before_date': ['before:2020-07-20'],
 			'before_eq_date': ['before_or_equal:2020-07-10'],
+			'date_eq': [ 'date_equals:2020-07-16' ],
 			
 			'array': [Rules.NULLABLE, Rules.ARRAY],
 			
@@ -26,7 +28,8 @@ class MyValidator(Validator):
 			'json_test': Rules.JSON,
 			'json_test.nested_param1': Rules.STRING,
 			
-			'none_test': Rules.PRESENT,
+			'present': Rules.PRESENT,
+			'filled':Rules.FILLED,
 			
 			'same1': [Rules.NULLABLE, Rules.STRING],
 			'same2': [Rules.NULLABLE, Rules.STRING],
@@ -55,6 +58,23 @@ class MyValidator(Validator):
 			'blue_light': [Rules.STRING, Rules.NULLABLE],
 			'darkness': [Rules.STRING, "required_without_all:red_light,green_light,blue_light"],
 
+			'digits': [Rules.STRING, "digits:3"],
+			'digits_between': [Rules.STRING, "digits_between:2,5"],
+
+			'distinct': [Rules.DISTINCT],
+
+			'in': ['in:9,8,7,6'],
+			'in_array': ['in_array:array'],
+			'not_in': ['not_in:9,8,7,6'],
+			'not_in_array': ['not_in_array:array'],
+
+			'regex': 'regex:^[a-z]+$',
+			'not_regex': 'not_regex:^[a-z]+$',
+
+			'starts_with_string': [Rules.FILE, 'starts_with:_TeSt,tEsT'],
+			'starts_with_integer': [Rules.INTEGER, 'starts_with:20,69'],
+			'starts_with_array': [Rules.ARRAY, 'starts_with:elementul1,elementul9'],
+			'starts_with_file': [Rules.FILE, 'starts_with:test1234,TEST']
 		}
 
 		self.messages = {

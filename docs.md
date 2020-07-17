@@ -28,7 +28,7 @@
 - The field under validation must be entirely alpha-numeric characters.
 
 ### array
-- The field under validation must be an `array` string or a Python `array` object.
+- The field under validation must be a valid `array` string or a Python `array` object.
 
 ### bail
 - Stop running validation rules after the first validation failure.
@@ -55,8 +55,10 @@
 - The field under validation must be equal to the given date. The date will be passed into the `parse` function from [python-dateutil](https://pypi.org/project/python-dateutil/) Python package.
 
 ### date_format:*format*
-- The field under validation must match the given *format*. You should use either date or date_format when validating a field, not both. This validation rule supports all formats supported by ______.
-
+- The field under validation must match the given *format*. You should use either [date](#date) or [date_format](#date_formatformat) when validating a field, not both. This validation rule supports all formats supported by `strptime` function from `datetime` Python package.
+```python
+"start_date": ["date", "date_format:%d-%m-%Y"]
+```
 ### different:*foo,bar,...*
 - The field under validation must have a different value than the given *fields*.
 
@@ -64,7 +66,7 @@
 - The field under validation must be *numeric* and must have an exact length of *value*.
 
 ### digits_between:*min, max*
-- The field under validation must have a length between the given *min* and *max*.
+- The field under validation must be *numeric* and must have a length between the given *min* and *max*.
 
 ### dimensions:*WidthxHeight*
 - The file under validation must be an image meeting the dimension constraints specified as `WidthxHeight`
@@ -73,7 +75,7 @@
 ```
 
 ### distinct
-- When working with arrays, the field under validation must not have any duplicate values.
+- When working with arrays, the field under validation must not have any duplicate values. Returns `True` for everything else.
 
 ### email
 - The field under validation must be formatted as an e-mail address.
@@ -115,7 +117,7 @@
 - The field under validation must be an IPv6 address.
 
 ### json
-- The field under validation must be a valid JSON string.
+- The field under validation must be a valid JSON string or a Python `dict` object.
 
 ### lt:*field*
 - The field under validation must be less than the given *field*. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [size](#size) rule.
@@ -137,7 +139,10 @@
 - The field under validation must have a minimum *value*. Strings, numerics, arrays, and files are evaluated in the same fashion as the [size](#size) rule.
 
 ### not_in:*foo,bar,...*
-- The field under validation must not be included in the given list of values.
+- The field under validation must *not* be included in the given list of values.
+
+### not_in_array:*another_field*
+- The field under validation must *not* exist in *another_field*'s values.
 
 ### not_regex:*pattern*
 - The field under validation must not match the given regular expression.
@@ -202,7 +207,7 @@
 'image' => 'file|size:512'
 ```
 ### starts_with:*foo,bar,...*
-- The field under validation must start with one of the given values.
+- For strings, files and numbers, the field under validation must start with one of the given values. For arrays, the first element must be one of the given values.
 
 ### string
 - The field under validation must be a string. If you would like to allow the field to also be `None`, you should assign the [nullable](#nullable) rule to the field.

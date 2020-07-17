@@ -34,7 +34,7 @@ class Validator:
 		if not hasattr(self, '_processor'):
 			raise Exception("Base validator not initialized. Most probably you forgot to call super().__init__(*args, **kwargs) inside your validator class.")
 		if not self.validate_method():
-			return # validation passed
+			return # validation ignored for other methods
 		self.validate_body_format()
 		self.parse_rules()
 		result = self._processor.run()

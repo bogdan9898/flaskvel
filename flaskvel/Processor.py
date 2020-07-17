@@ -1,5 +1,8 @@
 import re
+import ast
+import json
 from dateutil.parser import parse as parse_date
+from datetime import datetime
 from flask import request
 from werkzeug.datastructures import FileStorage # comes packaged with flask
 
@@ -8,7 +11,7 @@ from .Constants.DefaultMessages import DefaultMessages
 from .Constants.FieldTypes import FieldTypes
 
 class Processor():
-	null_intolerant_rules = [ # todo: move this into Flaskvel class with regitered_handlers 
+	null_intolerant_rules = [ # todo: move this into Flaskvel class along side regitered_handlers 
 		RulesPredicates.REQUIRED,
 		RulesPredicates.REQUIRED_IF,
 		RulesPredicates.REQUIRED_UNLESS,
@@ -16,7 +19,8 @@ class Processor():
 		RulesPredicates.REQUIRED_WITH_ALL,
 		RulesPredicates.REQUIRED_WITHOUT,
 		RulesPredicates.REQUIRED_WITHOUT_ALL,
-		RulesPredicates.PRESENT
+		RulesPredicates.PRESENT,
+		RulesPredicates.FILLED,
 	]
 
 	def __init__(self, validator):
@@ -82,10 +86,13 @@ class Processor():
 			# DELETE ME!
 			field_type = self.get_field_type(field_name)
 			print("{0} -> {1} / {2}".format(field_name, field_type, type(self.get_field_value(field_name))))
-			# DELETE ME!
+		print("\n")
+		# DELETE ME!
 		return validation_passed
 
 	def get_field_type(self, field_name):
+		# todo: improve this fct to make smarter guesses and validate
+		# every field before returning the FieldType
 		rules = self._parsed_rules[field_name]
 		types_requirements = {
 			FieldTypes.NUMERIC: ['integer', 'numeric'],
@@ -125,6 +132,18 @@ class Processor():
 				return None
 		return result
 
+	def is_field_present(self, field_name):
+		if field_name in request.files:
+			return True
+
+		result = request.json if request.is_json else request.form
+		keys = field_name.split('.')
+		for key in keys:
+			if key not in result:
+				return False
+			result = result[key]
+		return True
+
 	def is_field_nullable(self, rules):
 		imply_nullable = [
 			RulesPredicates.NULLABLE,
@@ -144,6 +163,7 @@ class Processor():
 		return RulesPredicates.BAIL in rules
 
 	def generate_errors(self, field_name):
+		# todo: remove comparison_messages, instead test for: isinstance(message, dict)
 		comparison_messages = ['between', 'gt', 'gte', 'lt', 'lte', 'max', 'min', 'size']
 		errors_strings = []
 		field_type = self.get_field_type(field_name)
@@ -153,7 +173,7 @@ class Processor():
 
 			if not message:
 				message = DefaultMessages.get(rule_predicate)
-				if message and (rule_predicate in comparison_messages):
+				if message and (rule_predicate in comparison_messages): # todo: if isinstance(messages, dict):
 					message = message.get(field_type)
 
 			if not message:
@@ -218,8 +238,16 @@ class Processor():
 			return False
 
 	def handler_array(self, **kwargs):
-		# todo: validate strings that match [.+(,\w+)*]
-		return isinstance(kwargs['value'], list)
+		value = kwargs['value']
+		if isinstance(value, list):
+			return True
+		if isinstance(value, str):
+			try:
+				ast.literal_eval(value)
+				return True
+			except:
+				return False
+		return False
 
 	def handler_before(self, **kwargs):
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE)
@@ -251,26 +279,62 @@ class Processor():
 			return False
 
 	def handler_date_equals(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DATE_EQUALS)
+		try:
+			return parse_date(kwargs['value']) == parse_date(kwargs['params'][0])
+		except:
+			return False
 
 	def handler_date_format(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DATE_FORMAT)
+		value = kwargs['value']
+		date_format = kwargs['params'][0]
+		try:
+			datetime.strptime(value, date_format)
+			return True
+		except:
+			return False
 
 	def handler_different(self, **kwargs):
-		# todo: support more than one field (like same rule)
-		pass
+		value = kwargs['value']
+		params = kwargs['params']
+		kwargs['err_msg_params']['all_params'] = params
+		for param in params:
+			other_value = self.get_field_value(param)
+			if value == other_value:
+				return False
+		return True
 
 	def handler_digits(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DIGITS)
+		value = kwargs['value']
+		if isinstance(value, str):
+			if value.isnumeric() and str(len(value)) == kwargs['params'][0]:
+				return True
+		return False
 
 	def handler_digits_between(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 2, RulesPredicates.DIGITS_BETWEEN)
+		value = kwargs['value']
+		if isinstance(value, str):
+			if value.isnumeric() and kwargs['params'][0] < str(len(value)) and str(len(value)) < kwargs['params'][1]:
+				return True
+		return False
 
 	def handler_dimensions(self, **kwargs):
 		pass
 
 	def handler_distinct(self, **kwargs):
-		pass
+		value = kwargs['value']
+		if isinstance(value, list):
+			return len(set(value)) == len(value)
+		elif isinstance(value, str):
+			try:
+				value = ast.literal_eval(value)
+				return len(set(value)) == len(value)
+			except:
+				return True
+		return True
 
 	def handler_email(self, **kwargs):
 		pattern = re.compile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", re.IGNORECASE)
@@ -288,7 +352,9 @@ class Processor():
 		return isinstance(kwargs['value'], FileStorage)
 
 	def handler_filled(self, **kwargs):
-		pass
+		if self.is_field_present(kwargs['field_name']):
+			return not kwargs['value'] == None
+		return True
 
 	def handler_gt(self, **kwargs):
 		pass
@@ -300,10 +366,16 @@ class Processor():
 		pass
 
 	def handler_in(self, **kwargs):
-		pass
+		kwargs['err_msg_params']['all_params'] = kwargs['params']
+		return kwargs['value'] in kwargs['params']
 
 	def handler_in_array(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.IN_ARRAY)
+		other = self.get_field_value(kwargs['params'][0])
+		try:
+			return kwargs['value'] in ast.literal_eval(other)
+		except:
+			return False
 
 	def handler_integer(self, **kwargs):
 		try:
@@ -322,7 +394,17 @@ class Processor():
 		pass
 
 	def handler_json(self, **kwargs):
-		return isinstance(kwargs['value'], dict)
+		# todo: test in json body request
+		value = kwargs['value']
+		if isinstance(value, dict):
+			return True
+		if isinstance(value, str):
+			try:
+				json.loads(value)
+				return True
+			except:
+				return False
+		return False
 
 	def handler_lt(self, **kwargs):
 		pass
@@ -339,11 +421,25 @@ class Processor():
 	def handler_min(self, **kwargs):
 		pass
 
-	def handler_not_int(self, **kwargs):
-		pass
+	def handler_not_in(self, **kwargs):
+		kwargs['err_msg_params']['all_params'] = kwargs['params']
+		return kwargs['value'] not in kwargs['params']
+
+	def handler_not_in_array(self, **kwargs):
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.NOT_IN_ARRAY)
+		other = self.get_field_value(kwargs['params'][0])
+		try:
+			return kwargs['value'] not in ast.literal_eval(other)
+		except:
+			return False
 
 	def handler_not_regex(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.NOT_REGEX)
+		try:
+			pattern = re.compile(kwargs['params'][0])
+			return pattern.match(kwargs['value']) is None
+		except:
+			return False
 
 	def handler_numeric(self, **kwargs):
 		try:
@@ -353,25 +449,21 @@ class Processor():
 			return False
 
 	def handler_present(self, **kwargs):
-		field_name = kwargs['field_name']
-		if field_name in request.files:
-			return True
-
-		result = request.json if request.is_json else request.form
-		keys = field_name.split('.')
-		for key in keys:
-			if key not in result:
-				return False
-			result = result[key]
-		return True
+		return not kwargs['value'] == None or self.is_field_present(kwargs['field_name'])
 
 	def handler_regex(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.REGEX)
+		try:
+			pattern = re.compile(kwargs['params'][0])
+			return pattern.match(kwargs['value']) is not None
+		except:
+			return False
 
 	def handler_required(self, **kwargs):
 		return kwargs['value'] != None
 
 	def handler_required_if(self, **kwargs):
+		self.assert_params_count(kwargs['params'], 2, RulesPredicates.REQUIRED_IF)
 		params = kwargs['params']
 		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
 		other_value = self.get_field_value(params[0])
@@ -382,6 +474,7 @@ class Processor():
 		return not other_value in params[1:] or kwargs['value'] is not None
 
 	def handler_required_unless(self, **kwargs):
+		self.assert_params_count(kwargs['params'], 2, RulesPredicates.REQUIRED_UNLESS)
 		params = kwargs['params']
 		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
 		other_value = self.get_field_value(params[0])
@@ -437,9 +530,47 @@ class Processor():
 		pass
 
 	def handler_starts_with(self, **kwargs):
+		# todo: rewrite this fct after get_field_type is refactored
+		# check for every FieldType case: strings on files, ints on array etc
+		value = kwargs['value']
 		params = kwargs['params']
 		kwargs['err_msg_params']['all_params'] = params
-		pass
+
+		field_type = self.get_field_type(kwargs['field_name'])
+
+		if field_type == FieldTypes.NUMERIC or field_type == FieldTypes.STRING:
+			value = str(value)
+			for param in params:
+				if value.startswith(param):
+					return True
+		elif field_type == FieldTypes.ARRAY:
+			if isinstance(value, list) and len(value) > 0:
+				return value[0] in params
+			elif isinstance(value, str):
+				try:
+					value = ast.literal_eval(value)
+					return len(value) > 0 and value[0] in params
+				except:
+					return False
+		# elif field_type == FieldTypes.STRING:
+		# 	value = str(value)
+		# 	for param in params:
+		# 		if value.startswith(param):
+		# 			return True
+		elif field_type == FieldTypes.FILE:
+			bytes_read_cnt = 0
+			file_buffer = b''
+			for param in params:
+				if len(params) > bytes_read_cnt:
+					# read first n-th bytes from file
+					# AttributeError: 'str' object has no attribute 'read'
+					file_buffer += value.read(64) 
+					bytes_read_cnt += 64
+				if file_buffer.startswith(param.encode()):
+					value.seek(0)
+					return True
+			value.seek(0)
+		return False
 
 	def handler_string(self, **kwargs):
 		return isinstance(kwargs['value'], str)
