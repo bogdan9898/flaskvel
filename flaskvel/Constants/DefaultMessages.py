@@ -69,7 +69,7 @@ DefaultMessages = {
         FieldTypes.STRING: 'The {field_name} field may not be greater than {0} characters.',
         FieldTypes.ARRAY: 'The {field_name} field may not have more than {0} items.',
     },
-    'mime_types': 'The {field_name} field must be a file of type: {0}.',
+    'mimetypes': 'The {field_name} field must be a file of type: {0}.',
     'min': {
         FieldTypes.NUMERIC: 'The {field_name} field must be at least {0}.',
         FieldTypes.FILE: 'The {field_name} field must be at least {0} kilobytes.',
@@ -99,7 +99,7 @@ DefaultMessages = {
     'starts_with': 'The {field_name} field must start with one of the following: {all_params}',
     'string': 'The {field_name} field must be a string.',
     'timezone': 'The {field_name} field must be a valid zone.',
-    'url': 'The {field_name} field format is invalid.',
+    'url': 'The {field_name} field must be a valid URL.',
     'uuid': 'The {field_name} field must be a valid UUID.',
 
 }

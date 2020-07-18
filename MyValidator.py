@@ -14,16 +14,19 @@ class MyValidator(Validator):
 			'sector': [Rules.STRING, "required_if:oras,bucharest,bucuresti"],
 			'judet': [Rules.STRING, "required_unless:oras,bucharest,bucuresti"],
 			
-			'date': [ Rules.DATE, 'date_format:%d-%m-%Y' ],
+			'date': [Rules.DATE, 'date_format:%d-%m-%Y'],
 			'after_date': ['after:2020-07-10'],
 			'after_eq_date': ['after_or_equal:2020-07-10'],
 			'before_date': ['before:2020-07-20'],
 			'before_eq_date': ['before_or_equal:2020-07-10'],
-			'date_eq': [ 'date_equals:2020-07-16' ],
-			
+			'date_eq': ['date_equals:2020-07-16'],
+			'timezone': ['timezone'],
+
 			'array': [Rules.NULLABLE, Rules.ARRAY],
 			
 			'file_test': [Rules.REQUIRED, Rules.FILE],
+			'mimetypes': ['mimetypes:image/png'],
+			'image': [Rules.IMAGE],
 			
 			'json_test': Rules.JSON,
 			'json_test.nested_param1': Rules.STRING,
@@ -31,7 +34,7 @@ class MyValidator(Validator):
 			'present': Rules.PRESENT,
 			'filled':Rules.FILLED,
 			
-			'same1': [Rules.NULLABLE, Rules.STRING],
+			'same1': [ Rules.NULLABLE, Rules.STRING] ,
 			'same2': [Rules.NULLABLE, Rules.STRING],
 			'same3': [Rules.NULLABLE, Rules.STRING],
 			'same4': [Rules.NULLABLE, Rules.STRING, "same:same1,same2,same3"],
@@ -71,10 +74,24 @@ class MyValidator(Validator):
 			'regex': 'regex:^[a-z]+$',
 			'not_regex': 'not_regex:^[a-z]+$',
 
-			'starts_with_string': [Rules.FILE, 'starts_with:_TeSt,tEsT'],
-			'starts_with_integer': [Rules.INTEGER, 'starts_with:20,69'],
-			'starts_with_array': [Rules.ARRAY, 'starts_with:elementul1,elementul9'],
-			'starts_with_file': [Rules.FILE, 'starts_with:test1234,TEST']
+			'starts_with_string': [Rules.STRING, 'starts_with:TeSt,tEsT'],
+			'starts_with_numeric': [Rules.NUMERIC, 'starts_with:20,2020'],
+			'starts_with_array': [Rules.ARRAY, 'starts_with:elementul0,elementul1'],
+			'starts_with_file': [Rules.FILE, 'starts_with:test1234,TEST'],
+
+			'ends_with_string': [Rules.STRING, 'ends_with:TeSt,tEsT'],
+			'ends_with_numeric': [Rules.NUMERIC, 'ends_with:20,2020'],
+			'ends_with_array': [Rules.ARRAY, 'ends_with:elementul0,elementul1'],
+			'ends_with_file': [Rules.FILE, 'ends_with:test1234,line 7,not_this_ending'],
+
+			'url': [Rules.URL],
+			'active_url': [Rules.ACTIVE_URL],
+
+			'uuid': [Rules.UUID],
+
+			'ip': [Rules.IP],
+			'ipv4': [Rules.IPV4],
+			'ipv6': [Rules.IPV6],
 		}
 
 		self.messages = {

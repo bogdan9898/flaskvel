@@ -1,6 +1,8 @@
 import re
 import ast
 import json
+import pytz
+import requests
 from dateutil.parser import parse as parse_date
 from datetime import datetime
 from flask import request
@@ -91,32 +93,68 @@ class Processor():
 		return validation_passed
 
 	def get_field_type(self, field_name):
-		# todo: improve this fct to make smarter guesses and validate
-		# every field before returning the FieldType
 		rules = self._parsed_rules[field_name]
-		types_requirements = {
-			FieldTypes.NUMERIC: ['integer', 'numeric'],
-			FieldTypes.FILE: ['file', 'image', 'dimensions'],
-			FieldTypes.STRING: ['string', 'alpha', 'alpha_dash'],
-			FieldTypes.ARRAY: ['array'],
-		}
-		for field_type, requirements in types_requirements.items():
-			for requirement in requirements:
-				if requirement in rules:
-					return field_type
+		value = self.get_field_value(field_name)
 
-		field_value = self.get_field_value(field_name)
-		if isinstance(field_value, int) or isinstance(field_value, float):
+		for rule in [
+			RulesPredicates.ALPHA_NUM,
+			RulesPredicates.DIGITS,
+			RulesPredicates.DIGITS_BETWEEN,
+			RulesPredicates.INTEGER,
+			RulesPredicates.NUMERIC,
+		]:
+			if rule in rules:
+				if self.handler_integer(value=value) or self.handler_numeric(value=value):
+					return FieldTypes.NUMERIC
+				else:
+					return FieldTypes.UNKOWN
+
+		for rule in [
+			RulesPredicates.FILE,
+			RulesPredicates.IMAGE,
+			RulesPredicates.DIMENSIONS
+		]:
+			if rule in rules:
+				if self.handler_file(value=value):
+					return FieldTypes.FILE
+				else:
+					return FieldTypes.UNKOWN
+
+		for rule in [
+			RulesPredicates.STRING,
+			RulesPredicates.ALPHA,
+			RulesPredicates.ALPHA_DASH
+		]:
+			if rule in rules:
+				if self.handler_string(value=value):
+					return FieldTypes.STRING
+				else:
+					return FieldTypes.UNKOWN
+
+		for rule in [RulesPredicates.ARRAY]:
+			if rule in rules:
+				if self.handler_array(value=value):
+					return FieldTypes.ARRAY
+				else:
+					return FieldTypes.UNKOWN
+
+		if isinstance(value, int) or isinstance(value, float):
 			return FieldTypes.NUMERIC
 
-		if isinstance(field_value, str):
-			return FieldTypes.STRING
+		if isinstance(value, FileStorage):
+			return FieldTypes.FILE
 
-		if isinstance(field_value, list):
+		if isinstance(value, list):
 			return FieldTypes.ARRAY
 
-		if isinstance(field_value, FileStorage):
-			return FieldTypes.FILE
+		if isinstance(value, str):
+			if self.handler_integer(value=value) or self.handler_numeric(value=value):
+				return FieldTypes.NUMERIC
+
+			if self.handler_array(value=value):
+				return FieldTypes.ARRAY
+
+			return FieldTypes.STRING
 
 		return FieldTypes.UNKOWN
 
@@ -130,6 +168,13 @@ class Processor():
 			result = result.get(key)
 			if not result:
 				return None
+			try:
+				if isinstance(result, str): # parse json strings within forms
+					json_obj = json.loads(result)
+					if isinstance(json_obj, dict):
+						result = json_obj
+			except:
+				pass
 		return result
 
 	def is_field_present(self, field_name):
@@ -193,14 +238,18 @@ class Processor():
 			# return self._registered_handlers.find(rule_predicate)
 		handler = 'handler_' + rule_predicate
 		if not hasattr(self, handler):
-			raise Exception('No handler found for rule <{0}>'.format(rule_predicate))
+			raise Exception('No handler found for rule <{0}>.\nThis may be caused by a misspelled rule or by using a custom rule with an unregistered handler.'.format(rule_predicate))
 		return getattr(self, handler)
 
 	def handler_accepted(self, **kwargs):
 		return kwargs['value'] in ['yes', 1, '1', 'on', True, 'true']
 
 	def handler_active_url(self, **kwargs):
-		pass
+		try:
+			if requests.head(kwargs['value']).status_code < 400:
+				return True
+		except:
+			return False
 
 	def handler_after(self, **kwargs):
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER)
@@ -217,23 +266,23 @@ class Processor():
 			return False
 
 	def handler_alpha(self, **kwargs):
-		patern = re.compile("^[a-z\s]*$", re.IGNORECASE)
+		pattern = re.compile("^[a-z\s]*$", re.IGNORECASE)
 		try:
-			return patern.match(kwargs['value'])
+			return pattern.match(kwargs['value']) is not None
 		except:
 			return False
 
 	def handler_alpha_dash(self, **kwargs):
-		patern = re.compile("^[a-z\-_\s]*$", re.IGNORECASE)
+		pattern = re.compile("^[a-z\-_\s]*$", re.IGNORECASE)
 		try:
-			return patern.match(kwargs['value'])
+			return pattern.match(kwargs['value']) is not None
 		except:
 			return False
 
 	def handler_alpha_num(self, **kwargs):
-		patern = re.compile("^[a-z0-9\s]*$", re.IGNORECASE)
+		pattern = re.compile("^[a-z0-9\s]*$", re.IGNORECASE)
 		try:
-			return patern.match(kwargs['value'])
+			return pattern.match(kwargs['value']) is not None
 		except:
 			return False
 
@@ -243,8 +292,7 @@ class Processor():
 			return True
 		if isinstance(value, str):
 			try:
-				ast.literal_eval(value)
-				return True
+				return isinstance(ast.literal_eval(value), list)
 			except:
 				return False
 		return False
@@ -267,7 +315,10 @@ class Processor():
 		pass
 
 	def handler_boolean(self, **kwargs):
-		return kwargs['value'] in [1, 0, '1', '0', True, False]
+		value = kwargs['value']
+		if isinstance(value, bool):
+			return True
+		return value in [1, 0, '1', '0', True, False]
 
 	def handler_confirmed(self, **kwargs):
 		return kwargs['value'] == self.get_field_value("{0}_confirmed".format(kwargs['field_name']))
@@ -331,22 +382,66 @@ class Processor():
 		elif isinstance(value, str):
 			try:
 				value = ast.literal_eval(value)
-				return len(set(value)) == len(value)
+				return isinstance(value, list) and len(set(value)) == len(value)
 			except:
 				return True
 		return True
 
 	def handler_email(self, **kwargs):
-		pattern = re.compile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", re.IGNORECASE)
+		pattern = re.compile(
+			r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"  # dot-atom
+			# quoted-string, see also http://tools.ietf.org/html/rfc2822#section-3.2.5
+			r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"'
+			r')@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$', re.IGNORECASE)  # domain)
 		try:
 			return pattern.match(kwargs['value']) is not None
 		except:
 			return False
 
 	def handler_ends_with(self, **kwargs):
+		value = kwargs['value']
 		params = kwargs['params']
 		kwargs['err_msg_params']['all_params'] = params
-		pass
+
+		field_type = self.get_field_type(kwargs['field_name'])
+		if field_type == FieldTypes.NUMERIC or field_type == FieldTypes.STRING:
+			value = str(value)
+			for param in params:
+				if value.endswith(param):
+					return True
+		elif field_type == FieldTypes.ARRAY:
+			if isinstance(value, list) and len(value) > 0:
+				return value[-1] in params
+			elif isinstance(value, str):
+				try:
+					value = ast.literal_eval(value)
+					return isinstance(value, list) and len(value) > 0 and value[-1] in params
+				except:
+					return False
+		elif field_type == FieldTypes.FILE:
+			try:
+				CHUNK_SIZE = 16
+				bytes_read_cnt = 0
+				file_buffer = b''
+				value.seek(0, 2)
+				for param in params:
+					# read last n bytes from file
+					while len(param) > bytes_read_cnt:
+						backward_offset = min(CHUNK_SIZE, value.tell())
+						value.seek(-backward_offset, 1)
+						data = value.read(backward_offset)
+						if data == b'':
+							break
+						file_buffer = data + file_buffer
+						bytes_read_cnt += len(data)
+						value.seek(-backward_offset, 1)
+					if file_buffer.endswith(param.encode()):
+						value.seek(0, 0)
+						return True
+				value.seek(0, 0)
+			except:
+				return False
+		return False
 
 	def handler_file(self, **kwargs):
 		return isinstance(kwargs['value'], FileStorage)
@@ -363,7 +458,10 @@ class Processor():
 		pass
 
 	def handler_image(self, **kwargs):
-		pass
+		try:
+			return kwargs['value'].filename.split(".")[-1] in ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'svg', 'webp']
+		except:
+			return False
 
 	def handler_in(self, **kwargs):
 		kwargs['err_msg_params']['all_params'] = kwargs['params']
@@ -373,28 +471,57 @@ class Processor():
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
-			return kwargs['value'] in ast.literal_eval(other)
+			other = ast.literal_eval(other)
+			return isinstance(other, list) and kwargs['value'] in other
 		except:
 			return False
 
 	def handler_integer(self, **kwargs):
+		value = kwargs['value']
+		if isinstance(value, int) or isinstance(value, float):
+			return True
 		try:
-			int(kwargs['value'])
+			int(value)
 			return True
 		except:
 			return False
 
 	def handler_ip(self, **kwargs):
-		pass
+		value = kwargs['value']
+		return self.handler_ipv4(value=value) or self.handler_ipv6(value=value)
 
 	def handler_ipv4(self, **kwargs):
-		pass
+		pattern = re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}$')
+		try:
+			return pattern.match(kwargs['value']) is not None
+		except:
+			return False
 
 	def handler_ipv6(self, **kwargs):
-		pass
+		pattern = re.compile(
+			r'([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'				# 1:2:3:4:5:6:7:8
+			r'([0-9a-fA-F]{1,4}:){1,7}:|'								# 1::                              1:2:3:4:5:6:7::
+			r'([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|'				# 1::8             1:2:3:4:5:6::8  1:2:3:4:5:6::8
+			r'([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|'		# 1::7:8           1:2:3:4:5::7:8  1:2:3:4:5::8
+			r'([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|'		# 1::6:7:8         1:2:3:4::6:7:8  1:2:3:4::8
+			r'([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|'		# 1::5:6:7:8       1:2:3::5:6:7:8  1:2:3::8
+			r'([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|'		# 1::4:5:6:7:8     1:2::4:5:6:7:8  1:2::8
+			r'[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|'				# 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8  
+			r':((:[0-9a-fA-F]{1,4}){1,7}|:)|'							# ::2:3:4:5:6:7:8  ::2:3:4:5:6:7:8 ::8       ::     
+			r'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|'			# fe80::7:8%eth0   fe80::7:8%1     (link-local IPv6 addresses with zone index)
+			r'::(ffff(:0{1,4}){0,1}:){0,1}'
+			r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
+			r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|'				# ::255.255.255.255   ::ffff:255.255.255.255  ::ffff:0:255.255.255.255  (IPv4-mapped IPv6 addresses and IPv4-translated addresses)
+			r'([0-9a-fA-F]{1,4}:){1,4}:'
+			r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
+			r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])', re.IGNORECASE	# 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33 (IPv4-Embedded IPv6 Address)
+		)
+		try:
+			return pattern.match(kwargs['value']) is not None
+		except:
+			return False
 
 	def handler_json(self, **kwargs):
-		# todo: test in json body request
 		value = kwargs['value']
 		if isinstance(value, dict):
 			return True
@@ -416,7 +543,10 @@ class Processor():
 		pass
 
 	def handler_mimetypes(self, **kwargs):
-		pass
+		try:
+			return kwargs['value'].mimetype in kwargs['params']
+		except:
+			return False
 
 	def handler_min(self, **kwargs):
 		pass
@@ -429,7 +559,8 @@ class Processor():
 		self.assert_params_count(kwargs['params'], 1, RulesPredicates.NOT_IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
-			return kwargs['value'] not in ast.literal_eval(other)
+			other = ast.literal_eval(other)
+			return isinstance(other, list) and kwargs['value'] not in other
 		except:
 			return False
 
@@ -442,8 +573,11 @@ class Processor():
 			return False
 
 	def handler_numeric(self, **kwargs):
+		value = kwargs['value']
+		if isinstance(value, int) or isinstance(value, float):
+			return True
 		try:
-			float(kwargs['value'])
+			float(value)
 			return True
 		except:
 			return False
@@ -530,14 +664,11 @@ class Processor():
 		pass
 
 	def handler_starts_with(self, **kwargs):
-		# todo: rewrite this fct after get_field_type is refactored
-		# check for every FieldType case: strings on files, ints on array etc
 		value = kwargs['value']
 		params = kwargs['params']
 		kwargs['err_msg_params']['all_params'] = params
 
 		field_type = self.get_field_type(kwargs['field_name'])
-
 		if field_type == FieldTypes.NUMERIC or field_type == FieldTypes.STRING:
 			value = str(value)
 			for param in params:
@@ -549,37 +680,53 @@ class Processor():
 			elif isinstance(value, str):
 				try:
 					value = ast.literal_eval(value)
-					return len(value) > 0 and value[0] in params
+					return isinstance(value, list) and len(value) > 0 and value[0] in params
 				except:
 					return False
-		# elif field_type == FieldTypes.STRING:
-		# 	value = str(value)
-		# 	for param in params:
-		# 		if value.startswith(param):
-		# 			return True
 		elif field_type == FieldTypes.FILE:
-			bytes_read_cnt = 0
-			file_buffer = b''
-			for param in params:
-				if len(params) > bytes_read_cnt:
-					# read first n-th bytes from file
-					# AttributeError: 'str' object has no attribute 'read'
-					file_buffer += value.read(64) 
-					bytes_read_cnt += 64
-				if file_buffer.startswith(param.encode()):
-					value.seek(0)
-					return True
-			value.seek(0)
+			try:
+				CHUNK_SIZE = 16
+				bytes_read_cnt = 0
+				file_buffer = b''
+				value.seek(0, 0)
+				for param in params:
+					while len(param) > bytes_read_cnt:
+						# read first n bytes from file
+						data = value.read(CHUNK_SIZE)
+						if data == b'':
+							break
+						file_buffer += data
+						bytes_read_cnt += len(data)
+					if file_buffer.startswith(param.encode()):
+						value.seek(0, 0)
+						return True
+				value.seek(0, 0)
+			except:
+				return False
 		return False
 
 	def handler_string(self, **kwargs):
 		return isinstance(kwargs['value'], str)
 
 	def handler_timezone(self, **kwargs):
-		pass
+		return kwargs['value'] in pytz.all_timezones
 
 	def handler_url(self, **kwargs):
-		pass
+		pattern = re.compile(
+			r'^(?:http|ftp)s?://' # optional http:// or https://
+			r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+			r'localhost|' #localhost...
+			r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+			r'(?::\d+)?' # optional port
+			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+		try:
+			return pattern.match(kwargs['value']) is not None
+		except:
+			return False
 
 	def handler_uuid(self, **kwargs):
-		pass
+		pattern = re.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+		try:
+			return pattern.match(kwargs['value']) is not None
+		except:
+			return False

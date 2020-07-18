@@ -78,7 +78,7 @@
 - When working with arrays, the field under validation must not have any duplicate values. Returns `True` for everything else.
 
 ### email
-- The field under validation must be formatted as an e-mail address.
+- The field under validation must be formatted as an e-mail address. The regex used is the same as [Django's EmailValidator](https://github.com/django/django/blob/stable/1.3.x/django/core/validators.py#L151).
 
 ### ends_with:*foo, bar,...*
 - The field under validation must end with one of the given values.
@@ -111,7 +111,7 @@
 - The field under validation must be an IP address.
 
 ### ipv4
-- The field under validation must be an IPv4 address.
+- The field under validation must be an IPv4 address. The regex used is the same as [Django's ipv4 validator](https://github.com/django/django/blob/stable/1.3.x/django/core/validators.py#L161).
 
 ### ipv6
 - The field under validation must be an IPv6 address.
@@ -216,7 +216,7 @@
 - The field under validation must be a valid timezone identifier according to the `pytz` Python package.
 
 ### url
-- The field under validation must be a valid URL.
+- The field under validation must be a valid URL. The regex used is the same as [Django's UrlValidator](https://github.com/django/django/blob/stable/1.3.x/django/core/validators.py#L45).
 
 ### uuid
 - The field under validation must be a valid RFC 4122 (version 1, 3, 4, or 5) universally unique identifier (UUID).
