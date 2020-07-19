@@ -3,6 +3,7 @@ import ast
 import json
 import pytz
 import requests
+import os
 from dateutil.parser import parse as parse_date
 from datetime import datetime
 from flask import request
@@ -97,12 +98,10 @@ class Processor():
 		value = self.get_field_value(field_name)
 
 		for rule in [
-			RulesPredicates.ALPHA_NUM,
 			RulesPredicates.DIGITS,
 			RulesPredicates.DIGITS_BETWEEN,
 			RulesPredicates.INTEGER,
-			RulesPredicates.NUMERIC,
-		]:
+			RulesPredicates.NUMERIC,]:
 			if rule in rules:
 				if self.handler_integer(value=value) or self.handler_numeric(value=value):
 					return FieldTypes.NUMERIC
@@ -112,8 +111,7 @@ class Processor():
 		for rule in [
 			RulesPredicates.FILE,
 			RulesPredicates.IMAGE,
-			RulesPredicates.DIMENSIONS
-		]:
+			RulesPredicates.DIMENSIONS,]:
 			if rule in rules:
 				if self.handler_file(value=value):
 					return FieldTypes.FILE
@@ -123,18 +121,26 @@ class Processor():
 		for rule in [
 			RulesPredicates.STRING,
 			RulesPredicates.ALPHA,
-			RulesPredicates.ALPHA_DASH
-		]:
+			RulesPredicates.ALPHA_DASH,]:
 			if rule in rules:
 				if self.handler_string(value=value):
 					return FieldTypes.STRING
 				else:
 					return FieldTypes.UNKOWN
 
-		for rule in [RulesPredicates.ARRAY]:
+		for rule in [
+			RulesPredicates.ARRAY,
+			RulesPredicates.DISTINCT,]:
 			if rule in rules:
 				if self.handler_array(value=value):
 					return FieldTypes.ARRAY
+				else:
+					return FieldTypes.UNKOWN
+
+		for rule in [RulesPredicates.JSON,]:
+			if rule in rules:
+				if self.handler_json(value=value):
+					return FieldTypes.JSON
 				else:
 					return FieldTypes.UNKOWN
 
@@ -147,12 +153,18 @@ class Processor():
 		if isinstance(value, list):
 			return FieldTypes.ARRAY
 
+		if isinstance(value, dict):
+			return FieldTypes.JSON
+
 		if isinstance(value, str):
 			if self.handler_integer(value=value) or self.handler_numeric(value=value):
 				return FieldTypes.NUMERIC
 
 			if self.handler_array(value=value):
 				return FieldTypes.ARRAY
+
+			if self.handler_json(value=value):
+				return FieldTypes.JSON
 
 			return FieldTypes.STRING
 
@@ -174,7 +186,7 @@ class Processor():
 					if isinstance(json_obj, dict):
 						result = json_obj
 			except:
-				pass
+				continue
 		return result
 
 	def is_field_present(self, field_name):
@@ -218,7 +230,7 @@ class Processor():
 
 			if not message:
 				message = DefaultMessages.get(rule_predicate)
-				if message and (rule_predicate in comparison_messages): # todo: if isinstance(messages, dict):
+				if message and (rule_predicate in comparison_messages): # todo: refactor to: if isinstance(messages, dict):
 					message = message.get(field_type)
 
 			if not message:
@@ -661,7 +673,40 @@ class Processor():
 		return True
 
 	def handler_size(self, **kwargs):
-		pass
+		self.assert_params_count(kwargs['params'], 1, RulesPredicates.SIZE)
+		value = kwargs['value']
+		params = kwargs['params']
+
+		field_type = self.get_field_type(kwargs['field_name'])
+		if field_type == FieldTypes.STRING:
+			return str(len(value)) == params[0]
+		elif field_type == FieldTypes.NUMERIC:
+			return str(value) == params[0]
+		elif field_type == FieldTypes.ARRAY:
+			if isinstance(value, list):
+				return str(len(value)) == params[0]
+			if isinstance(value, str):
+				try:
+					value = ast.literal_eval(value)
+					return isinstance(value, list) and str(len(value)) == params[0]
+				except:
+					return False
+		elif field_type == FieldTypes.JSON:
+			if isinstance(value, dict):
+				return str(len(value)) == params[0]
+			if isinstance(value, str):
+				try:
+					value = json.loads(value)
+					return str(len(value)) == params[0]
+				except:
+					return False
+		elif field_type == FieldTypes.FILE:
+			value.seek(0, os.SEEK_END)
+			file_size = value.tell()
+			value.seek(0, os.SEEK_SET)
+			return str(file_size) == params[0]
+
+		return False
 
 	def handler_starts_with(self, **kwargs):
 		value = kwargs['value']

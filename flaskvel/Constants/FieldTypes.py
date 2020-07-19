@@ -1,12 +1,10 @@
 
 
 class FieldTypes():
-	NUMERIC = 'numeric'
-	FILE = 'file'
 	STRING = 'string'
+	NUMERIC = 'numeric'
 	ARRAY = 'array'
 	JSON = 'json'
-	BOOLEAN = 'boolean'
-	DATE = 'date'
+	FILE = 'file'
 	UNKOWN = 'unknown_type'
 	

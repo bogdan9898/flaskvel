@@ -133,7 +133,7 @@
 ```python
 'video': 'mimetypes:video/avi,video/mpeg,video/quicktime'
 ```
-- To determine the MIME type of the uploaded file, the file's contents will be read and the framework will attempt to guess the MIME type, which may be different from the client provided MIME type.
+- The MIME type used for the given file will be provided by the werkzeug.FileStorage module.
 
 ### min:*value*
 - The field under validation must have a minimum *value*. Strings, numerics, arrays, and files are evaluated in the same fashion as the [size](#size) rule.
@@ -192,7 +192,7 @@
 - The given *fields* must match the field under validation.
 
 ### size:*value*
-- The field under validation must have a size matching the given *value*. For string data, *value* corresponds to the number of characters. For numeric data, value corresponds to a given integer *value* (the attribute must also have the [numeric](#numeric) or [integer](#integer) rule). For an array, size corresponds to the count of the array. For files, *size* corresponds to the file size in kilobytes.
+- The field under validation must have a size matching the given *value*. For string data, *value* corresponds to the number of characters. For numeric data, value corresponds to a given integer/float *value* (the attribute must also have the [numeric](#numeric) or [integer](#integer) rule). For an array, size corresponds to the count of the array. For a json, *value* must be equal to the number of keys. For files, *size* corresponds to the file size in kilobytes.
 ```python
 # Validate that a string is exactly 12 characters long...
 'title' => 'size:12'
@@ -202,6 +202,9 @@
 
 # Validate that an array has exactly 5 elements...
 'tags' => 'array|size:5'
+
+# Validte that a json has exaclty 2 keys...
+'login_credentials' => 'json|size:2'
 
 # Validate that an uploaded file is exactly 512 kilobytes...
 'image' => 'file|size:512'
