@@ -4,6 +4,7 @@ import json
 import pytz
 import requests
 import os
+import operator
 from dateutil.parser import parse as parse_date
 from datetime import datetime
 from flask import request
@@ -220,18 +221,15 @@ class Processor():
 		return RulesPredicates.BAIL in rules
 
 	def generate_errors(self, field_name):
-		# todo: remove comparison_messages, instead test for: isinstance(message, dict)
-		comparison_messages = ['between', 'gt', 'gte', 'lt', 'lte', 'max', 'min', 'size']
 		errors_strings = []
-		field_type = self.get_field_type(field_name)
 		for rule_predicate, params in self._failed_validations[field_name].items():
 			params, err_msg_params = params
 			message = self._messages.get('{0}.{1}'.format(field_name, rule_predicate))
 
 			if not message:
 				message = DefaultMessages.get(rule_predicate)
-				if message and (rule_predicate in comparison_messages): # todo: refactor to: if isinstance(messages, dict):
-					message = message.get(field_type)
+				if isinstance(message, dict):
+					message = message.get(self.get_field_type(field_name))
 
 			if not message:
 				errors_strings.append('Validation failed for: ' + str(rule_predicate))
@@ -240,9 +238,93 @@ class Processor():
 
 		return errors_strings
 
-	def assert_params_count(self, params, required_size, rule_predicate):
-		if len(params) < required_size:
-			raise Exception('Rule <{0}> requires at least {1} parameter'.format(rule_predicate, required_size))
+	def _assert_params_types(self, params, params_types, rule_predicate):
+		if len(params) < len(params_types):
+			raise Exception('Rule <{0}> requires at least {1} parameter.'.format(rule_predicate,len(params_types)))
+		
+		for i in range(len(params_types)):
+			try:
+				params_types[i](params[i])
+			except:
+				raise Exception('Rule <{0}> requires parameter number {1} to be of type {2}.'.format(rule_predicate, i+1, params_types[i].__name__))
+
+	def _compare_fields_size(self, field_a_name, field_b_name, operator):
+		value_a = self.get_field_value(field_a_name)
+		value_b = self.get_field_value(field_b_name)
+		field_a_type = self.get_field_type(field_a_name)
+		field_b_type = self.get_field_type(field_b_name)
+		if value_a is None or value_b is None or not field_a_type == field_b_type:
+			return False
+		
+		if field_a_type == FieldTypes.STRING:
+			return operator(len(value_a), len(value_b))
+		elif field_a_type == FieldTypes.NUMERIC:
+			return operator(float(value_a), float(value_b))
+		elif field_a_type == FieldTypes.ARRAY:
+			if isinstance(value_a, str):
+				try:
+					value_a = ast.literal_eval(value_a)
+				except:
+					return False
+			if isinstance(value_b, str):
+				try:
+					value_b = ast.literal_eval(value_b)
+				except:
+					return False
+			return isinstance(value_b, list) and isinstance(value_b, list) and operator(len(value_a), len(value_b))
+		elif field_a_type == FieldTypes.JSON:
+			if isinstance(value_a, str):
+				try:
+					value_a = json.loads(value_a)
+				except:
+					return False
+			if isinstance(value_b, str):
+				try:
+					value_b = json.loads(value_b)
+				except:
+					return False
+			return isinstance(value_a, dict) and isinstance(value_b, dict) and operator(len(value_a), len(value_b))
+		elif field_a_type == FieldTypes.FILE:
+			value_a.seek(0, os.SEEK_END)
+			value_b.seek(0, os.SEEK_END)
+			file_a_size = round(value_a.tell() / 1024)
+			file_b_size = round(value_b.tell() / 1024)
+			value_a.seek(0, os.SEEK_SET)
+			value_b.seek(0, os.SEEK_SET)
+			return operator(file_a_size, file_b_size)
+		return False
+
+	def _compare_single_field_size(self, field, size, operator):
+		field_value = self.get_field_value(field)
+		field_type = self.get_field_type(field)
+		if field_type == FieldTypes.STRING:
+			return operator(len(field_value), int(size))
+		elif field_type == FieldTypes.NUMERIC:
+			return operator(float(field_value), float(size))
+		elif field_type == FieldTypes.ARRAY:
+			if isinstance(field_value, list):
+				return operator(len(field_value), int(size))
+			if isinstance(field_value, str):
+				try:
+					field_value = ast.literal_eval(field_value)
+					return isinstance(field_value, list) and operator(len(field_value), int(size))
+				except:
+					return False
+		elif field_type == FieldTypes.JSON:
+			if isinstance(field_value, dict):
+				return operator(len(field_value), int(size))
+			if isinstance(field_value, str):
+				try:
+					field_value = json.loads(field_value)
+					return isinstance(field_value, dict) and operator(len(field_value), int(size))
+				except:
+					return False
+		elif field_type == FieldTypes.FILE:
+			field_value.seek(0, os.SEEK_END)
+			file_size = round(field_value.tell() / 1024)
+			field_value.seek(0, os.SEEK_SET)
+			return operator(file_size, int(size))
+		return False
 
 	def get_rule_handler(self, rule_predicate):
 		# todo: !!first!! check if handler is in custom_handlers, so an user can override default handlers for default RulesPredicates
@@ -264,14 +346,14 @@ class Processor():
 			return False
 
 	def handler_after(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.AFTER)
 		try:
 			return parse_date(kwargs['value']) > parse_date(kwargs['params'][0])
 		except:
 			return False 
 
 	def handler_after_or_equal(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.AFTER_OR_EQUAL)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.AFTER_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) >= parse_date(kwargs['params'][0])
 		except:
@@ -310,14 +392,14 @@ class Processor():
 		return False
 
 	def handler_before(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.BEFORE)
 		try:
 			return parse_date(kwargs['value']) < parse_date(kwargs['params'][0])
 		except:
 			return False
 
 	def handler_before_or_equal(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.BEFORE_OR_EQUAL)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.BEFORE_OR_EQUAL)
 		try:
 			return parse_date(kwargs['value']) <= parse_date(kwargs['params'][0])
 		except:
@@ -342,14 +424,14 @@ class Processor():
 			return False
 
 	def handler_date_equals(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DATE_EQUALS)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.DATE_EQUALS)
 		try:
 			return parse_date(kwargs['value']) == parse_date(kwargs['params'][0])
 		except:
 			return False
 
 	def handler_date_format(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DATE_FORMAT)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.DATE_FORMAT)
 		value = kwargs['value']
 		date_format = kwargs['params'][0]
 		try:
@@ -369,18 +451,18 @@ class Processor():
 		return True
 
 	def handler_digits(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.DIGITS)
+		self._assert_params_types(kwargs['params'], [int], RulesPredicates.DIGITS)
 		value = kwargs['value']
 		if isinstance(value, str):
-			if value.isnumeric() and str(len(value)) == kwargs['params'][0]:
+			if value.isnumeric() and len(value) == int(kwargs['params'][0]):
 				return True
 		return False
 
 	def handler_digits_between(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 2, RulesPredicates.DIGITS_BETWEEN)
+		self._assert_params_types(kwargs['params'], [int, int], RulesPredicates.DIGITS_BETWEEN)
 		value = kwargs['value']
 		if isinstance(value, str):
-			if value.isnumeric() and kwargs['params'][0] < str(len(value)) and str(len(value)) < kwargs['params'][1]:
+			if value.isnumeric() and int(kwargs['params'][0]) < len(value) and len(value) < int(kwargs['params'][1]):
 				return True
 		return False
 
@@ -435,22 +517,22 @@ class Processor():
 				CHUNK_SIZE = 16
 				bytes_read_cnt = 0
 				file_buffer = b''
-				value.seek(0, 2)
+				value.seek(0, os.SEEK_END)
 				for param in params:
 					# read last n bytes from file
 					while len(param) > bytes_read_cnt:
 						backward_offset = min(CHUNK_SIZE, value.tell())
-						value.seek(-backward_offset, 1)
+						value.seek(-backward_offset, os.SEEK_CUR)
 						data = value.read(backward_offset)
 						if data == b'':
 							break
 						file_buffer = data + file_buffer
 						bytes_read_cnt += len(data)
-						value.seek(-backward_offset, 1)
+						value.seek(-backward_offset, os.SEEK_CUR)
 					if file_buffer.endswith(param.encode()):
-						value.seek(0, 0)
+						value.seek(0, os.SEEK_SET)
 						return True
-				value.seek(0, 0)
+				value.seek(0, os.SEEK_SET)
 			except:
 				return False
 		return False
@@ -464,10 +546,12 @@ class Processor():
 		return True
 
 	def handler_gt(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.GT)
+		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.gt)
 
 	def handler_gte(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.GTE)
+		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.ge)
 
 	def handler_image(self, **kwargs):
 		try:
@@ -480,7 +564,7 @@ class Processor():
 		return kwargs['value'] in kwargs['params']
 
 	def handler_in_array(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.IN_ARRAY)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
 			other = ast.literal_eval(other)
@@ -546,13 +630,16 @@ class Processor():
 		return False
 
 	def handler_lt(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.LT)
+		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.lt)
 
 	def handler_lte(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.LTE)
+		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.le)
 
 	def handler_max(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [int], RulesPredicates.MAX)
+		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.le)
 
 	def handler_mimetypes(self, **kwargs):
 		try:
@@ -561,14 +648,15 @@ class Processor():
 			return False
 
 	def handler_min(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [int], RulesPredicates.MIN)
+		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.ge)
 
 	def handler_not_in(self, **kwargs):
 		kwargs['err_msg_params']['all_params'] = kwargs['params']
 		return kwargs['value'] not in kwargs['params']
 
 	def handler_not_in_array(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.NOT_IN_ARRAY)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.NOT_IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
 			other = ast.literal_eval(other)
@@ -577,7 +665,7 @@ class Processor():
 			return False
 
 	def handler_not_regex(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.NOT_REGEX)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.NOT_REGEX)
 		try:
 			pattern = re.compile(kwargs['params'][0])
 			return pattern.match(kwargs['value']) is None
@@ -598,7 +686,7 @@ class Processor():
 		return not kwargs['value'] == None or self.is_field_present(kwargs['field_name'])
 
 	def handler_regex(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.REGEX)
+		self._assert_params_types(kwargs['params'], [str], RulesPredicates.REGEX)
 		try:
 			pattern = re.compile(kwargs['params'][0])
 			return pattern.match(kwargs['value']) is not None
@@ -609,7 +697,7 @@ class Processor():
 		return kwargs['value'] != None
 
 	def handler_required_if(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 2, RulesPredicates.REQUIRED_IF)
+		self._assert_params_types(kwargs['params'], [str, str], RulesPredicates.REQUIRED_IF)
 		params = kwargs['params']
 		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
 		other_value = self.get_field_value(params[0])
@@ -620,7 +708,7 @@ class Processor():
 		return not other_value in params[1:] or kwargs['value'] is not None
 
 	def handler_required_unless(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 2, RulesPredicates.REQUIRED_UNLESS)
+		self._assert_params_types(kwargs['params'], [str, str], RulesPredicates.REQUIRED_UNLESS)
 		params = kwargs['params']
 		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
 		other_value = self.get_field_value(params[0])
@@ -673,40 +761,8 @@ class Processor():
 		return True
 
 	def handler_size(self, **kwargs):
-		self.assert_params_count(kwargs['params'], 1, RulesPredicates.SIZE)
-		value = kwargs['value']
-		params = kwargs['params']
-
-		field_type = self.get_field_type(kwargs['field_name'])
-		if field_type == FieldTypes.STRING:
-			return str(len(value)) == params[0]
-		elif field_type == FieldTypes.NUMERIC:
-			return str(value) == params[0]
-		elif field_type == FieldTypes.ARRAY:
-			if isinstance(value, list):
-				return str(len(value)) == params[0]
-			if isinstance(value, str):
-				try:
-					value = ast.literal_eval(value)
-					return isinstance(value, list) and str(len(value)) == params[0]
-				except:
-					return False
-		elif field_type == FieldTypes.JSON:
-			if isinstance(value, dict):
-				return str(len(value)) == params[0]
-			if isinstance(value, str):
-				try:
-					value = json.loads(value)
-					return str(len(value)) == params[0]
-				except:
-					return False
-		elif field_type == FieldTypes.FILE:
-			value.seek(0, os.SEEK_END)
-			file_size = value.tell()
-			value.seek(0, os.SEEK_SET)
-			return str(file_size) == params[0]
-
-		return False
+		self._assert_params_types(kwargs['params'], [int], RulesPredicates.SIZE)
+		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.eq)
 
 	def handler_starts_with(self, **kwargs):
 		value = kwargs['value']
@@ -733,7 +789,7 @@ class Processor():
 				CHUNK_SIZE = 16
 				bytes_read_cnt = 0
 				file_buffer = b''
-				value.seek(0, 0)
+				value.seek(0, os.SEEK_SET)
 				for param in params:
 					while len(param) > bytes_read_cnt:
 						# read first n bytes from file
@@ -743,9 +799,9 @@ class Processor():
 						file_buffer += data
 						bytes_read_cnt += len(data)
 					if file_buffer.startswith(param.encode()):
-						value.seek(0, 0)
+						value.seek(0, os.SEEK_SET)
 						return True
-				value.seek(0, 0)
+				value.seek(0, os.SEEK_SET)
 			except:
 				return False
 		return False
