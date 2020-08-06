@@ -1,6 +1,7 @@
 import re
 import ast
 import json
+from copy import deepcopy
 import pytz
 import requests
 import os
@@ -9,24 +10,14 @@ from dateutil.parser import parse as parse_date
 from datetime import datetime
 from flask import request
 from werkzeug.datastructures import FileStorage # comes packaged with flask
+from PIL import Image
 
 from .Constants.RulesPredicates import RulesPredicates
 from .Constants.DefaultMessages import DefaultMessages
 from .Constants.FieldTypes import FieldTypes
+from .Flaskvel import Flaskvel
 
 class Processor():
-	null_intolerant_rules = [ # todo: move this into Flaskvel class along side regitered_handlers 
-		RulesPredicates.REQUIRED,
-		RulesPredicates.REQUIRED_IF,
-		RulesPredicates.REQUIRED_UNLESS,
-		RulesPredicates.REQUIRED_WITH,
-		RulesPredicates.REQUIRED_WITH_ALL,
-		RulesPredicates.REQUIRED_WITHOUT,
-		RulesPredicates.REQUIRED_WITHOUT_ALL,
-		RulesPredicates.PRESENT,
-		RulesPredicates.FILLED,
-	]
-
 	def __init__(self, validator):
 		self._validator = validator
 		self._errors = {} # error messages already formated
@@ -64,7 +55,7 @@ class Processor():
 				rule_predicate = parsed_rule.get_predicate()
 				params = parsed_rule.get_params()
 				if ((rule_predicate in ignored_predicates) or
-					(nullable and field_value is None and not rule_predicate in Processor.null_intolerant_rules)):
+					(nullable and field_value is None and not rule_predicate in Flaskvel._null_intolerant_rules)):
 					continue
 				
 				handler = None
@@ -178,6 +169,8 @@ class Processor():
 		result = request.json if request.is_json else request.form
 		keys = field_name.split('.')
 		for key in keys:
+			if not isinstance(result, dict):
+				return None
 			result = result.get(key)
 			if not result:
 				return None
@@ -327,9 +320,8 @@ class Processor():
 		return False
 
 	def get_rule_handler(self, rule_predicate):
-		# todo: !!first!! check if handler is in custom_handlers, so an user can override default handlers for default RulesPredicates
-		# if rule_predicate in self._registered_handlers:
-			# return self._registered_handlers.find(rule_predicate)
+		if rule_predicate in Flaskvel._registered_rules:
+			return Flaskvel._registered_rules[rule_predicate]
 		handler = 'handler_' + rule_predicate
 		if not hasattr(self, handler):
 			raise Exception('No handler found for rule <{0}>.\nThis may be caused by a misspelled rule or by using a custom rule with an unregistered handler.'.format(rule_predicate))
@@ -406,7 +398,10 @@ class Processor():
 			return False
 
 	def handler_between(self, **kwargs):
-		pass
+		self._assert_params_types(kwargs['params'], [int, int], RulesPredicates.BETWEEN)
+		params = kwargs['params']
+		return (self._compare_single_field_size(kwargs['field_name'], params[0], operator.gt) and
+				self._compare_single_field_size(kwargs['field_name'], params[1], operator.lt))
 
 	def handler_boolean(self, **kwargs):
 		value = kwargs['value']
@@ -456,18 +451,81 @@ class Processor():
 		if isinstance(value, str):
 			if value.isnumeric() and len(value) == int(kwargs['params'][0]):
 				return True
+		if isinstance(value, int) or isinstance(value, float):
+			value = str(value)
+			value = value.replace(".", "")
+			if  len(value) == int(kwargs['params'][0]):
+				return True
 		return False
 
 	def handler_digits_between(self, **kwargs):
 		self._assert_params_types(kwargs['params'], [int, int], RulesPredicates.DIGITS_BETWEEN)
 		value = kwargs['value']
 		if isinstance(value, str):
-			if value.isnumeric() and int(kwargs['params'][0]) < len(value) and len(value) < int(kwargs['params'][1]):
+			length = len(value)
+			if value.isnumeric() and int(kwargs['params'][0]) < length and length < int(kwargs['params'][1]):
+				return True
+		if isinstance(value, int) or isinstance(value, float):
+			value = str(value)
+			value = value.replace(".", "")
+			length = len(value)
+			if  int(kwargs['params'][0]) < length and length < int(kwargs['params'][1]):
 				return True
 		return False
 
 	def handler_dimensions(self, **kwargs):
-		pass
+		params = kwargs['params']
+		self._assert_params_types(params, [str for _ in range(len(params))], RulesPredicates.DIMENSIONS)
+		kwargs['err_msg_params']['all_params'] = params
+
+		valid_params = []
+		patterns = [
+			"(min_width)=(\d+)",
+			"(max_width)=(\d+)",
+			"(min_height)=(\d+)",
+			"(max_height)=(\d+)",
+			"(width)=(\d+)",
+			"(height)=(\d+)",
+			"(ratio)=(\d+)/(\d+)"]
+		dim_rules = {}
+		for pattern in patterns:
+			for param in params:
+				match = re.compile(pattern).match(param)
+				if match:
+					groups = match.groups()
+					dim_rules[groups[0]] = groups[1:]
+					valid_params.append(param)
+		if not len(params) == len(valid_params):
+			raise Exception("Invalid parameters for rule 'dimensions': " + str(set(params) - set(valid_params)))
+
+		try:
+			image = Image.open(kwargs['value'])
+			width, height = image.size
+			for dim_rule, dim_params in dim_rules.items():
+				if dim_rule == "min_width":
+					if not int(dim_params[0]) <= width:
+						return False
+				elif dim_rule == "max_width":
+					if not int(dim_params[0]) >= width:
+						return False
+				elif dim_rule == "min_height":
+					if not int(dim_params[0]) <= height:
+						return False
+				elif dim_rule == "max_height":
+					if not int(dim_params[0]) >= height:
+						return False
+				elif dim_rule == "width":
+					if not int(dim_params[0]) == width:
+						return False
+				elif dim_rule == "height":
+					if not int(dim_params[0]) == height:
+						return False
+				elif dim_rule == "ratio":
+					if not width / int(dim_params[0]) == height / int(dim_params[1]):
+						return False
+			return True
+		except:
+			return False
 
 	def handler_distinct(self, **kwargs):
 		value = kwargs['value']
@@ -567,7 +625,8 @@ class Processor():
 		self._assert_params_types(kwargs['params'], [str], RulesPredicates.IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
-			other = ast.literal_eval(other)
+			if not isinstance(other, list):
+				other = ast.literal_eval(other)
 			return isinstance(other, list) and kwargs['value'] in other
 		except:
 			return False
@@ -659,7 +718,8 @@ class Processor():
 		self._assert_params_types(kwargs['params'], [str], RulesPredicates.NOT_IN_ARRAY)
 		other = self.get_field_value(kwargs['params'][0])
 		try:
-			other = ast.literal_eval(other)
+			if not isinstance(other, list):
+				other = ast.literal_eval(other)
 			return isinstance(other, list) and kwargs['value'] not in other
 		except:
 			return False
