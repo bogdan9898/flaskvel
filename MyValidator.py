@@ -1,4 +1,4 @@
-from flaskvel import Rules, Validator
+from flaskvel import Rules, Validator, ParsedRule
 
 class MyValidator(Validator):
 	def __init__(self, *args, **kwargs):
@@ -7,6 +7,7 @@ class MyValidator(Validator):
 			'username': [Rules.REQUIRED, Rules.STRING],
 			
 			'password': [Rules.REQUIRED, self.is_valid_passwd],
+			'unreg_paramed_rule': [Rules.REQUIRED, ParsedRule(self.validate_unreg_paramed_rule, [1,2,3])],
 			
 			'email': [Rules.EMAIL, Rules.NULLABLE],
 			
@@ -100,4 +101,7 @@ class MyValidator(Validator):
 		}
 
 	def is_valid_passwd(self, **kwargs):
-		return False
+		return True
+
+	def validate_unreg_paramed_rule(self, params, **kwargs):
+		return params is not None and len(params) > 0

@@ -17,8 +17,6 @@ class Validator:
 		self.rules = {}
 		self.messages = {}
 		# ------------------------------------------------------------------ #
-		# todo: register custom handlers
-		self._registered_handlers = []
 		self._processor = Processor(self)
 
 	def get_parsed_rules(self):
@@ -26,9 +24,6 @@ class Validator:
 
 	def get_messages(self):
 		return self.messages
-
-	def get_registered_handlers(self):
-		return self._registered_handlers
 
 	def validate(self):
 		if not hasattr(self, '_processor'):
@@ -66,6 +61,8 @@ class Validator:
 				self._parsed_rules[field_name] = ArrayParser.parse(field_rules)
 			elif isinstance(field_rules, str):
 				self._parsed_rules[field_name] = PipedStringParser.parse(field_rules)
+			elif isinstance(field_rules, ParsedRule):
+				self._parsed_rules[field_name] = [field_rules]
 			elif callable(field_rules):
 				self._parsed_rules[field_name] = [ParsedRule(field_rules)]
 			else:

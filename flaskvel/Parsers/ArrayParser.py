@@ -8,6 +8,9 @@ class ArrayParser():
 			if callable(rule):
 				parsed_rules.append(ParsedRule(rule))
 				continue
+			elif isinstance(rule, ParsedRule):
+				parsed_rules.append(rule)
+				continue
 			tmp = rule.split(":")
 			predicate = tmp[0]
 			params = []

@@ -1,10 +1,10 @@
 from flask import Flask
 from flaskvel import Flaskvel, validate, BodyFormats, ValidationException
 
-# from MyValidator import MyValidator
-from MyValidator_json import MyValidator
-# from SizeValidator import SizeValidator
-from SizeValidator_json import SizeValidator
+from MyValidator import MyValidator
+# from MyValidator_json import MyValidator
+from SizeValidator import SizeValidator
+# from SizeValidator_json import SizeValidator
 
 app = Flask(__name__)
 # todo: add DefaultMessages translation units

@@ -23,7 +23,6 @@ class Processor():
 		self._errors = {} # error messages already formated
 		self._failed_validations = {} # info about failed validations
 		self._parsed_rules = None
-		self._registered_handlers = None
 		self._messages = None
 
 	def get_errors(self):
@@ -38,8 +37,6 @@ class Processor():
 			self._messages = self._validator.get_messages()
 		if self._parsed_rules is None:
 			self._parsed_rules = self._validator.get_parsed_rules()
-		if self._registered_handlers is None:
-			self._registered_handlers = self._validator.get_registered_handlers()
 
 		ignored_predicates = [RulesPredicates.NULLABLE, RulesPredicates.BAIL]
 
