@@ -17,6 +17,8 @@ FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the li
 # Quickstart
 Lets suppose we want an endpoint that is used to register a user. First of all, we have to instantiate Flask and to also [initialize FlaskVel](#initialization) by calling it's constructor with the appropriate parameters.
 ```python
+# main.py
+
 from flask import Flask, jsonify
 from flaskvel import Flaskvel, validate, BodyFormats
 
@@ -33,6 +35,8 @@ def register():
 
 To add validations let's create a class that contains the rules.
 ```python
+# MyValidator.py
+
 from flaskvel import Rules, Validator
 
 class MyValidator(Validator):
@@ -47,13 +51,15 @@ class MyValidator(Validator):
 
 For more info about writing rules see [Rules syntax](#rules-syntax).
 
-Now we can add our validator to the endpoint using [the decorator](#the-decorator).
+Now we can add our validator to the endpoint using [the decorator](#the-decorator) provided by FlaskVel.
 ```python
 @app.route("/register", methods=["POST"])
 @validate(MyValidator, BodyFormats.ANY)
 def register():
     return jsonify({"status": "ok"}), 200
 ```
+
+**NOTE:** `@validate` must be positioned after `@app.route`.
 
 ---
 
@@ -77,6 +83,8 @@ faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=4
 - *validator_class* - a class derived from flaskvel.Validator that contains the desired rules and messages
 
 ```python
+# MyValidator.py
+
 class MyValidator(Validator):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs) # MUST always be called first
@@ -88,9 +96,9 @@ class MyValidator(Validator):
 			...
 		}
 ```
-- *body_format* - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the client will receive an error.
+- *body_format* - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the validation will fail.
 
-```js
+```json
 {
   "errors": "Request body is not a valid json",
   "status": "Validation failure"
@@ -98,11 +106,14 @@ class MyValidator(Validator):
 ```
 - *methods* - an array of: `"GET"`, `"POST"`, `"PUT"` etc. Used to specify the methods for which the validator should do it's job.
 
-**NOTE:** If the HTTP request is sent with another method than the ones specified, the validation will **NOT** fail, it will just be ignored.
+**NOTE:** If the HTTP request is sent with another method than the one specified, the validation will just be ignored, **NOT** fail.
 
 ```python
 @validate(MyValidator, BodyFormats.JSON, methods=["POST", "PUT"])
 ```
+
+**NOTE:** `@validate` must be positioned after `@app.route`.
+
 ## Rules syntax
 
 There are 2 ways rules can be declared:
@@ -124,7 +135,7 @@ There are 2 ways rules can be declared:
 
 ## Custom response
 By default, if the validation fails, a response similar to this will be returned:
-```js
+```json
 {
   "errors": {
     "password": [
@@ -150,7 +161,7 @@ class MyCustomException(ValidationException):
 		})
 ```
 
-Don't forget to tell Flaskvel to use the class just created.
+Don't forget to tell FlaskVel to use the class just created.
 ```python
 # main.py
 
@@ -164,7 +175,8 @@ Flaskvel(app, exception_class=MyCustomException)
 
 ```
 
-```js
+Now failed validation responses should look like this:
+```json
 {
   "reasons": {
     "password": [
