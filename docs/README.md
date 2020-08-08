@@ -16,6 +16,7 @@ FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the li
 
 # Quickstart
 Lets suppose we want an endpoint that is used to register a user. First of all, we have to instantiate Flask and to also [initialize FlaskVel](#initialization) by calling it's constructor with the appropriate parameters.
+
 ```python
 # main.py
 
@@ -27,6 +28,7 @@ Flaskvel(app)
 ```
 
 Now we are ready to define our endpoint.
+
 ```python
 # main.py
 
@@ -38,6 +40,7 @@ def register():
 ```
 
 To add validations let's create a class that derives from `flaskvel.Validator` and contains the rules.
+
 ```python
 # MyValidator.py
 
@@ -56,6 +59,7 @@ class MyValidator(Validator):
 For more info about writing rules see [Rules syntax](#rules-syntax).
 
 Now we can add our validator to the endpoint using [the decorator](#the-decorator) provided by FlaskVel.
+
 ```python
 @app.route("/register", methods=["POST"])
 @validate(MyValidator, BodyFormats.ANY)
@@ -68,6 +72,7 @@ def register():
 ---
 
 # Initialization
+
 ```python
 faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=400)
 ```
@@ -80,11 +85,12 @@ faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=4
 # Exploring further
 
 ## The decorator
+
 ```python
-@validate(validator_class, body_format, methods="*")
+def validate(validator_class, body_format, methods="*")
 ```
 
-- *validator_class* - a class derived from flaskvel.Validator that contains the desired rules and messages
+- ***validator_class*** - a class derived from `flaskvel.Validator` that contains the desired rules and messages:
 
 ```python
 # MyValidator.py
@@ -100,7 +106,7 @@ class MyValidator(Validator):
 			...
 		}
 ```
-- *body_format* - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the validation will fail.
+- ***body_format*** - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the validation will fail:
 
 ```json
 {
@@ -108,7 +114,8 @@ class MyValidator(Validator):
   "status": "Validation failure"
 }
 ```
-- *methods* - an array of: `"GET"`, `"POST"`, `"PUT"` etc. Used to specify the methods for which the validator should do it's job.
+
+- ***methods*** - an array of: `"GET"`, `"POST"`, `"PUT"` etc. Used to specify the methods for which the validator should do it's job.
 
 **NOTE:** If the HTTP request is sent with another method than the one specified, the validation will just be ignored, **NOT** fail.
 
@@ -120,27 +127,47 @@ class MyValidator(Validator):
 
 ## Rules syntax
 
-There are 2 ways rules can be declared:
+**NOTE:** The rules are case sensitive.
 
-1. Arrays:
+There are 2 ways in which validation rules can be asigned to fields:
+
+1. Single rule:
+
    ```python
-   'username': ["required", "string"],
-   'title': [Rules.NULLABLE, Rules.STRING], # we can also use predefined constants instead of strings
-   'description': ["required_with:title', 'string', 'max:256"]
-    ```
-2. Piped strings:
-   ```python
-   'username': ["required|string"],
-   'title': ["nullable|string"],
-   'description': ["required_with:title|string|max:256"]
+   self.rules = {
+    'username': "required",
+    'title': Rules.NULLABLE, # we can also use predefined constants instead of strings
+    'description': "required_with:title"
+   }
    ```
 
-   **Note:** The rules are case sensitive.
+2. Arrays of multiple rules:
+
+   ```python
+   self.rules = {
+    'username': ["required", "string"],
+    'title': [Rules.NULLABLE, Rules.STRING],
+    'description': ["required_with:title', 'string', 'max:256"]
+   }
+    ```
+
+3. Piped strings:
+  
+    **NOTE:** Piped strings are **NOT** allowed inside arrays.
+
+   ```python
+   self.rules = {
+    'username': "required|string",
+    'title': "nullable|string",
+    'description': "required_with:title|string|max:256"
+   }
+   ```
 
 ## Custom validation messages
 
 ## Custom error response
 By default, if the validation fails, the response will have HTTP error status code 400 and will be similar to this:
+
 ```json
 {
   "errors": {
@@ -154,6 +181,7 @@ By default, if the validation fails, the response will have HTTP error status co
 ```
 
 But we can customize it however we want. Let's create a class that inherits `flaskvel.ValidationException`.
+
 ```python
 # MyCustomException.py
 
@@ -164,11 +192,12 @@ class MyCustomException(ValidationException):
 	def pretty_print(self):
 		return jsonify({
 			"validation": "failed",
-            "reasons": self._message,
+            "reasons": self._message, # self._message contains all the validation errors
 		})
 ```
 
 Don't forget to tell FlaskVel to use the class just created and change the HTTP error status code to another value if you want to.
+
 ```python
 # main.py
 
@@ -181,7 +210,8 @@ app = Flask(__name__)
 Flaskvel(app, exception_class=MyCustomException, error_code=403)
 ```
 
-Now failed validation responses should have status code 403 and look like this:
+Now the failed validation responses should have HTTP status code 403 and look like this:
+
 ```json
 {
   "reasons": {
@@ -194,22 +224,43 @@ Now failed validation responses should have status code 403 and look like this:
 }
 ```
 
+## Stopping on first validation failure
+Sometimes you may wish to stop running the validation after the first failure. To do so, assign [bail](#bail) to the field:
+
+```python
+self.rules = {
+  "post": "bail|required|string",
+  "comments": "nullable|array"
+}
+```
+
+## Nested Attributes
+If your HTTP request contains “nested” parameters, you may specify them in your validation rules using “dot” syntax:
+
+```python
+self.rules = {
+    "user.id": "required",
+    "user.email": "required",
+}
+```
+
 ## Custom rules
 Besides the rules offered by default, you can extend the validator with your own custom rules. FlaskVel offers 2 ways to add your own custom rules.
 
 ### 1. Unregistered rules
-The easiest way to expand FlaskVel's functionality is to write your own `handlers` and pass them as rules to the validator. Every `handler` must satisfy the following conditions:
+The easiest way to expand FlaskVel's functionality is to write your own `handlers` and pass them as rules to the validator. Every `handler` is a function that must satisfy the following conditions:
 - it must return either `True` or `False`
 - it will receive the folowing keyword parameters:
   - `value` - the value of the field being validated
   - `field_name` - the name of the field being validated
-  - `params` - parameters of the rule
-  - `nullable` - `True` if the field has been specified as [nullable](#nullable), `False` otherwise
+  - `params` - a list of all the parameters of the rule
+  - `nullable` - is `True` if the field has been specified as [nullable](#nullable), `False` otherwise
   - `err_msg_params` - a `dict` object where you can insert parameters for [custom validation messages](#custom-validation-messages)
   - `processor` - an instance of the [Processor](#processor) class that called the `handler`
   - `rules` - a list of all the rules of the field being validated
 
-Let's suppose we want `order_number` field to be an even number. We proceed by declaring a handler named `is_even` and pasing it as a rule for the field.
+Let's suppose we want `order_number` field to be an even number. We proceed by declaring a handler named `is_even` and assigning it to the field.
+
 ```python
 # MyValidator.py
 
@@ -231,6 +282,7 @@ class MyValidator(Validator):
 ```
 
 If we want to pass parameters to an unregistered rule, we have to create an intance of `flaskvel.ParsedRule` and pass the the parameters in a list as following:
+
 ```python
 # MyValidator.py
 
@@ -252,17 +304,56 @@ class MyValidator(Validator):
 		return int(value) % params[0] == 0
 ```
 
-For more details on how to get other fields values, check if nullable etc. see [Processor](#processor).
+For more details on how to get another field's values, check if nullable etc. see [Processor](#processor).
 
 ### 2. Registered rules
 Registered rules are rules that can be used with the [default rules syntax](#rules-syntax), just like the ones provided by FlaskVel. 
 Although this proccess requires a bit of setup, the technique is recomended when you use an unregistered rule with parameters to validate more than one field.
 
+Let's take the example above and register a new rule named `divisible`. Be carefull when choosing a name because you risk overriding the default handler for a rule already defined by FlaskVel with the same name. You can find a full list of rules [here](#rules).
 
+```python
+# main.py
+
+def is_divisible(value, params, err_msg_params, **kwargs):
+		err_msg_params['divisor'] = params[0]
+		return int(value) % int(params[0]) == 0
+
+Flaskvel.register_rule('divisible', is_divisible)
+```
+
+An just like that our new rule is registered.
+
+```python
+# MyValidator.py
+
+from flaskvel import Validator, Rules, ParsedRule
+
+class MyValidator(Validator):
+    def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.rules = {
+			"order_number": [Rules.NUMERIC, 'divisible:2']
+		}
+
+		self.messages = {
+			"order_number.divisible": "Order number must be divisible by {divisor}"
+		}
+```
 
 **NOTE:** You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
 
+The function `flaskvel.Flaskvel.register_rule` has the following signature:
+
+```python
+def register_rule(rule, handler, is_null_tolerant=True)
+```
+- ***rule*** - the name of the rule to be registered
+- ***handler*** - the function implementing the rule
+- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the field's value is `None` and is specified as being [nullable](#nullable) and the rule is null tolerant then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`.
+
 ## Processor
+
 ```python
 def get_field_type(self, field_name):
 
@@ -276,8 +367,6 @@ def is_field_nullable(self, field_name):
 
 def should_bail(self, field_name):
 ```
-
-## 
 
 ## Notes
 
@@ -293,6 +382,7 @@ def should_bail(self, field_name):
 
 ## after:*date*
 - The field under validation must be a value after a given date. The dates will be passed into the `parse` function from [python-dateutil](https://pypi.org/project/python-dateutil/) Python package.
+
 ```python
 'start_date': ['required', 'date', 'after:2020-07-15']
 ```
@@ -338,6 +428,7 @@ def should_bail(self, field_name):
 
 ## date_format:*format*
 - The field under validation must match the given *format*. You should use either [date](#date) or [date_format](#date_formatformat) when validating a field, not both. This validation rule supports all formats supported by `strptime` function from `datetime` Python package.
+
 ```python
 "start_date": ["date", "date_format:%d-%m-%Y"]
 ```
@@ -353,6 +444,7 @@ def should_bail(self, field_name):
 
 ## dimensions
 - The file under validation must be an image meeting the dimension constraints as specified by the rule's parameters:
+
 ```python
 'avatar': 'dimensions:min_width=100,min_height=200'
 ```
@@ -360,6 +452,7 @@ def should_bail(self, field_name):
 - Available constraints are: *min_width, max_width, min_height, max_height, width, height, ratio*.
 
 - A ratio constraint should be represented as width divided by height. This can be specified either by a statement like 3/2:
+
 ```python
 'avatar': 'dimensions:ratio=3/2'
 ```
@@ -420,6 +513,7 @@ def should_bail(self, field_name):
 
 ## mimetypes:*text/plain,...*
 - The file under validation must match one of the given MIME types:
+
 ```python
 'video': 'mimetypes:video/avi,video/mpeg,video/quicktime'
 ```
@@ -484,23 +578,20 @@ def should_bail(self, field_name):
 
 ## size:*value*
 - The field under validation must have a size matching the given *value*. For string data, *value* corresponds to the number of characters. For numeric data, value corresponds to a given integer/float *value* (the attribute must also have the [numeric](#numeric) or [integer](#integer) rule). For an array, size corresponds to the count of the array. For a json, *value* must be equal to the number of keys. For files, *size* corresponds to the file size in kilobytes.
+
 ```python
 # Validate that a string is exactly 12 characters long...
 'title': 'size:12'
-```
-```python
+
 # Validate that a provided integer equals 10...
 'seats': 'integer|size:10'
-```
-```python
+
 # Validate that an array has exactly 5 elements...
 'tags': 'array|size:5'
-```
-```python
+
 # Validte that a json has exaclty 2 keys...
 'login_credentials': 'json|size:2'
-```
-```python
+
 # Validate that an uploaded file is exactly 512 kilobytes...
 'image': 'file|size:512'
 ```

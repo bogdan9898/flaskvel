@@ -18,6 +18,12 @@ def custom_handler(value, params, **kwargs):
 Flaskvel.register_rule('my_new_custom_rule', custom_handler, False)
 
 
+def is_divisible(value, params, err_msg_params, **kwargs):
+		err_msg_params['divisor'] = params[0] # we populate err_msg_params to customize the message defined above
+		return int(value) % int(params[0]) == 0
+
+Flaskvel.register_rule('divisible', is_divisible)
+
 @app.route("/", methods=["POST"])
 @validate(MyValidator, BodyFormats.FORM)
 def hello_world():
