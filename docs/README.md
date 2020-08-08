@@ -10,7 +10,7 @@ $ pip install flaskvel
 ```
 FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the list on the left to quickly find what you need.
 
-<span style="font-size:larger;">**NOTE:** <span style="color:red;">This package only works with Python 3.</span></span>
+!> This package only works with Python 3
 
 ---
 
@@ -56,7 +56,7 @@ class MyValidator(Validator):
         }
 ```
 
-For more info about writing rules see [Rules syntax](#rules-syntax).
+> For more info about writing rules see [Rules syntax](#rules-syntax).
 
 Now we can add our validator to the endpoint using [the decorator](#the-decorator) provided by FlaskVel.
 
@@ -67,7 +67,7 @@ def register():
     return jsonify({"status": "ok"}), 200
 ```
 
-**NOTE:** `@validate` must be positioned after `@app.route`.
+!> `@validate` must be positioned after `@app.route`.
 
 ---
 
@@ -117,51 +117,51 @@ class MyValidator(Validator):
 
 - ***methods*** - an array of: `"GET"`, `"POST"`, `"PUT"` etc. Used to specify the methods for which the validator should do it's job.
 
-**NOTE:** If the HTTP request is sent with another method than the one specified, the validation will just be ignored, **NOT** fail.
+!> If the HTTP request is sent with another method than the one specified, the validation will just be ignored, **NOT** fail.
 
 ```python
 @validate(MyValidator, BodyFormats.JSON, methods=["POST", "PUT"])
 ```
 
-**NOTE:** `@validate` must be positioned after `@app.route`.
+!> `@validate` must be positioned after `@app.route`.
 
 ## Rules syntax
 
-**NOTE:** The rules are case sensitive.
+!> The rules are case sensitive.
 
 There are 2 ways in which validation rules can be asigned to fields:
 
 1. Single rule:
 
-   ```python
-   self.rules = {
-    'username': "required",
-    'title': Rules.NULLABLE, # we can also use predefined constants instead of strings
-    'description': "required_with:title"
-   }
-   ```
+  ```python
+  self.rules = {
+  'username': "required",
+  'title': Rules.NULLABLE, # we can also use predefined constants instead of strings
+  'description': "required_with:title"
+  }
+  ```
 
 2. Arrays of multiple rules:
 
-   ```python
-   self.rules = {
-    'username': ["required", "string"],
-    'title': [Rules.NULLABLE, Rules.STRING],
-    'description': ["required_with:title', 'string', 'max:256"]
-   }
-    ```
+  ```python
+  self.rules = {
+  'username': ["required", "string"],
+  'title': [Rules.NULLABLE, Rules.STRING],
+  'description': ["required_with:title', 'string', 'max:256"]
+  }
+  ```
 
 3. Piped strings:
   
-    **NOTE:** Piped strings are **NOT** allowed inside arrays.
+  !> Piped strings are **NOT** allowed inside arrays.
 
-   ```python
-   self.rules = {
-    'username': "required|string",
-    'title': "nullable|string",
-    'description': "required_with:title|string|max:256"
-   }
-   ```
+  ```python
+  self.rules = {
+  'username': "required|string",
+  'title': "nullable|string",
+  'description': "required_with:title|string|max:256"
+  }
+  ```
 
 ## Custom validation messages
 
@@ -248,7 +248,7 @@ self.rules = {
 Besides the rules offered by default, you can extend the validator with your own custom rules. FlaskVel offers 2 ways to add your own custom rules.
 
 ### 1. Unregistered rules
-The easiest way to expand FlaskVel's functionality is to write your own `handlers` and pass them as rules to the validator. Every `handler` is a function that must satisfy the following conditions:
+The easiest way to expand FlaskVel's functionality is to write your own `handlers` and pass them directly as rules to the validator. Every `handler` is a function that must satisfy the following conditions:
 - it must return either `True` or `False`
 - it will receive the folowing keyword parameters:
   - `value` - the value of the field being validated
@@ -256,7 +256,7 @@ The easiest way to expand FlaskVel's functionality is to write your own `handler
   - `params` - a list of all the parameters of the rule
   - `nullable` - is `True` if the field has been specified as [nullable](#nullable), `False` otherwise
   - `err_msg_params` - a `dict` object where you can insert parameters for [custom validation messages](#custom-validation-messages)
-  - `processor` - an instance of the [Processor](#processor) class that called the `handler`
+  - `processor` - an instance of the [Processor](#processor) class that called the `handler`, used to get information about other fields
   - `rules` - a list of all the rules of the field being validated
 
 Let's suppose we want `order_number` field to be an even number. We proceed by declaring a handler named `is_even` and assigning it to the field.
@@ -281,7 +281,7 @@ class MyValidator(Validator):
       return int(value) % 2 == 0
 ```
 
-If we want to pass parameters to an unregistered rule, we have to create an intance of `flaskvel.ParsedRule` and pass the the parameters in a list as following:
+If we want to pass parameters to an unregistered rule, we have to create an intance of `flaskvel.ParsedRule` and pass the parameters in a list as following:
 
 ```python
 # MyValidator.py
@@ -307,10 +307,12 @@ class MyValidator(Validator):
 For more details on how to get another field's values, check if nullable etc. see [Processor](#processor).
 
 ### 2. Registered rules
-Registered rules are rules that can be used with the [default rules syntax](#rules-syntax), just like the ones provided by FlaskVel. 
-Although this proccess requires a bit of setup, the technique is recomended when you use an unregistered rule with parameters to validate more than one field.
+Registered rules are rules that can be used with the [default rules syntax](#rules-syntax), just like the ones provided by FlaskVel. The `handlers` for this type of rules must satisfy exactly the same condition as the ones for [Unregistered rules](#1-unregistered-rules)
+Although this proccess requires a bit of setup, it is recomended when you want to pass params to an unregistered rule more than one time.
 
-Let's take the example above and register a new rule named `divisible`. Be carefull when choosing a name because you risk overriding the default handler for a rule already defined by FlaskVel with the same name. You can find a full list of rules [here](#rules).
+Let's take the example above and register a new rule named `divisible`.
+
+!> Be carefull when choosing a name because you risk overriding the default handler for a rule already defined by FlaskVel with the same name. You can find a full list of rules [here](#rules).
 
 ```python
 # main.py
@@ -322,7 +324,7 @@ def is_divisible(value, params, err_msg_params, **kwargs):
 Flaskvel.register_rule('divisible', is_divisible)
 ```
 
-An just like that our new rule is registered.
+And just like that our new rule is registered.
 
 ```python
 # MyValidator.py
@@ -341,7 +343,7 @@ class MyValidator(Validator):
 		}
 ```
 
-**NOTE:** You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
+> You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
 
 The function `flaskvel.Flaskvel.register_rule` has the following signature:
 
@@ -350,25 +352,61 @@ def register_rule(rule, handler, is_null_tolerant=True)
 ```
 - ***rule*** - the name of the rule to be registered
 - ***handler*** - the function implementing the rule
-- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the field's value is `None` and is specified as being [nullable](#nullable) and the rule is null tolerant then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`.
+- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`
 
 ## Processor
 
+This class is responsible for processing the validation of every rule defined by default in FlaskVel, and manage all the other custom rules. When calling a `handler` function, a reference to the processor instance is passed as a keyword parameter. You can use it to gather details about other fields using the following methods:
+
 ```python
-def get_field_type(self, field_name):
-
-def get_field_value(self, field_name):
-
-def get_field_rules(self, field_name):
-
-def is_field_present(self, field_name):
-
-def is_field_nullable(self, field_name):
-
-def should_bail(self, field_name):
+def get_errors(self)
 ```
 
-## Notes
+- Returns a list of all the errors so far.
+
+```python
+def get_failed_validations(self)
+```
+
+- Returns a list of all the failed validations in detail so far.
+
+```python
+def get_field_type(self, field_name)
+```
+
+- Returns one of the following values: `flaskvel.FieldTypes.STRING`, `flaskvel.FieldTypes.NUMERIC`, `flaskvel.FieldTypes.ARRAY`, `flaskvel.FieldTypes.JSON`, `flaskvel.FieldTypes.FILE`, `flaskvel.FieldTypes.UNKOWN`. We recommend you to specify the type of every field ([string](#string), [numeric](#numeric), [array](#array), [json](#json), [file](#file)) otherwise the processor will try to guess it.
+
+!> Even if you specify the type of a field, it will still be validated, if this fails then `flaskvel.FieldTypes.UNKOWN` is returned.
+
+```python
+def get_field_value(self, field_name)
+```
+
+- Returns the value of the field. If the field is not present then returns `None`.
+
+```python
+def get_field_rules(self, field_name)
+```
+
+- Returns a list of all the rules of the field.
+
+```python
+def is_field_present(self, field_name)
+```
+
+- Returns either `True` or `False` depending on whether or not the field is present. A field is considered present even if is sent with `None` as it's value.
+
+```python
+def is_field_nullable(self, field_name)
+```
+
+- Returns either `True` or `False` depending on whether or not the field is [nullable](#nullable).
+
+```python
+def should_bail(self, field_name)
+```
+
+- Returns either `True` or `False` depending on whether or not the field contains the [bail](#bail) rule.
 
 ---
 
