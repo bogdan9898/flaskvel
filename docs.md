@@ -175,6 +175,8 @@
     - The value is `None`.
     - The value is an empty string.
     - The value is an empty array.
+    - The value is an empty json.
+
 
 ### required_if:*another_field,value1,value2,...*
 - The field under validation must be present and not empty *if* the *another_field* field is equal to any *value*.

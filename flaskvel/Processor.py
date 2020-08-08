@@ -75,11 +75,11 @@ class Processor():
 				self._failed_validations[field_name] = failed_validations
 				self._errors[field_name] = self.generate_errors(field_name)
 
-			# DELETE ME!
-			field_type = self.get_field_type(field_name)
-			print("{0} -> {1} / {2}".format(field_name, field_type, type(self.get_field_value(field_name))))
-		print("\n")
-		# DELETE ME!
+		# 	# DELETE ME!
+		# 	field_type = self.get_field_type(field_name)
+		# 	print("{0} -> {1} / {2}".format(field_name, field_type, type(self.get_field_value(field_name))))
+		# print("\n")
+		# # DELETE ME!
 		return validation_passed
 
 	def get_field_type(self, field_name):
@@ -407,7 +407,7 @@ class Processor():
 		return value in [1, 0, '1', '0', True, False]
 
 	def handler_confirmed(self, **kwargs):
-		return kwargs['value'] == self.get_field_value("{0}_confirmed".format(kwargs['field_name']))
+		return kwargs['value'] == self.get_field_value("{0}_confirmation".format(kwargs['field_name']))
 
 	def handler_date(self, **kwargs):
 		try:

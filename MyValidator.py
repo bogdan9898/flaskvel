@@ -8,7 +8,7 @@ class MyValidator(Validator):
 			
 			'password': [Rules.REQUIRED, self.is_valid_passwd],
 			'unreg_paramed_rule': [Rules.REQUIRED, ParsedRule(self.validate_unreg_paramed_rule, [1,2,3])],
-			
+
 			'email': [Rules.EMAIL, Rules.NULLABLE],
 			
 			'oras': [Rules.STRING, Rules.NULLABLE],
@@ -97,7 +97,6 @@ class MyValidator(Validator):
 
 		self.messages = {
 			"password.required": "I cant seem to find this field: {field_name}",
-			
 		}
 
 	def is_valid_passwd(self, **kwargs):

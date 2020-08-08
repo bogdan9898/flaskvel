@@ -20,8 +20,11 @@ class Flaskvel():
 		RulesPredicates.FILLED,
 	]
 
+	_exception_class = ValidationException
+
 	def __init__(self, app, exception_class=ValidationException, error_code=400):
 		Flaskvel._error_code = error_code
+		Flaskvel._exception_class = exception_class
 		app.register_error_handler(
 			exception_class,
 			Flaskvel._error_handler

@@ -1,6 +1,8 @@
 from functools import wraps
+import time
 from flask import request
 
+from .Flaskvel import Flaskvel
 from .Constants.BodyFormat import BodyFormats
 from .Parsers.ArrayParser import ArrayParser
 from .Parsers.PipedStringParser import PipedStringParser
@@ -33,10 +35,10 @@ class Validator:
 		self.validate_body_format()
 		self.parse_rules()
 		result = self._processor.run()
-		print("Validation result: {0}".format(result))
-		print(self._processor.get_failed_validations())
+		# print("Validation result: {0}".format(result))
+		# print(self._processor.get_failed_validations())
 		if not result:
-			raise ValidationException(self._processor.get_errors())
+			raise Flaskvel._exception_class(self._processor.get_errors())
 
 	def validate_method(self):
 		return self._methods == "*" or request.method in self._methods
@@ -46,14 +48,16 @@ class Validator:
 			return True
 		elif self._body_format == BodyFormats.JSON:
 			if not request.is_json:
-				raise ValidationException("Request body is not a valid json")
+				time.sleep(0.5) # this fixes a bug that triggers "write EPIPE" on client side
+				raise Flaskvel._exception_class("Request body is not a valid json")
 			return True
 		elif self._body_format == BodyFormats.FORM:
 			if request.is_json:
-				raise ValidationException("Request body is not a valid form")
+				time.sleep(0.5) # this fixes a bug that triggers "write EPIPE" on client side
+				raise Flaskvel._exception_class("Request body is not a valid form")
 			return True
 		else:
-			raise Exception("Invalid body format")
+			raise Flaskvel._exception_class("Invalid body format")
 
 	def parse_rules(self):
 		for field_name, field_rules in self.rules.items():

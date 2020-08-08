@@ -1,5 +1,5 @@
 # Introduction
-A small package which provides a convenient method to validate incoming HTTP requests with a variety of powerful validation rules heavily influenced by Laravel.
+A small package that provides a convenient method to validate incoming HTTP requests with a variety of powerful validation rules, highly customizable and heavily influenced by Laravel.
 
 ---
 
@@ -8,13 +8,179 @@ To install FlaskVel:
 ```
 $ pip install flaskvel
 ```
-FlaskVel is now installed. Check out the [Quickstart](#quickstart) or continue reading the documentation.
+FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the list on the left to quickly find what you need.
 
-<span style="font-size:larger;">**NOTE**: This package only works with Python 3.</span>
+<span style="font-size:larger;">**NOTE:** <span style="color:red;">This package only works with Python 3.</span></span>
 
 ---
 
 # Quickstart
+Lets suppose we want an endpoint that is used to register a user. First of all, we have to instantiate Flask and to also [initialize FlaskVel](#initialization) by calling it's constructor with the appropriate parameters.
+```python
+from flask import Flask, jsonify
+from flaskvel import Flaskvel, validate, BodyFormats
+
+app = Flask(__name__)
+Flaskvel(app)
+```
+
+Now we are ready to define our endpoint.
+```python
+@app.route("/register", methods=["POST"])
+def register():
+    return jsonify({"status": "ok"}), 200
+```
+
+To add validations let's create a class that contains the rules.
+```python
+from flaskvel import Rules, Validator
+
+class MyValidator(Validator):
+    def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs) # MUST always be called first
+        self.rules = {
+            "username": ["required", "string"],
+            "password": ["required", "min:8", "max:32", "confimed"], 
+            "email": [Rules.REQUIRED, Rules.EMAIL] # we can also use predefined constants instead of strings
+        }
+```
+
+For more info about writing rules see [Rules syntax](#rules-syntax).
+
+Now we can add our validator to the endpoint using [the decorator](#the-decorator).
+```python
+@app.route("/register", methods=["POST"])
+@validate(MyValidator, BodyFormats.ANY)
+def register():
+    return jsonify({"status": "ok"}), 200
+```
+
+---
+
+# Initialization
+```python
+faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=400)
+```
+- *app* - object returned by Flask()
+- *exception_class* - this parameter can be used to customize the format of the response sent when validation fails; see [Custom response](#custom-response)
+- *error_code* - HTTP status code returned when validation fails
+
+---
+
+# Exploring further
+
+## The decorator
+```python
+@validate(validator_class, body_format, methods="*")
+```
+
+- *validator_class* - a class derived from flaskvel.Validator that contains the desired rules and messages
+
+```python
+class MyValidator(Validator):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs) # MUST always be called first
+		self.rules = {
+            ...
+		}
+
+		self.messages = {
+			...
+		}
+```
+- *body_format* - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the client will receive an error.
+
+```js
+{
+  "errors": "Request body is not a valid json",
+  "status": "Validation failure"
+}
+```
+- *methods* - an array of: `"GET"`, `"POST"`, `"PUT"` etc. Used to specify the methods for which the validator should do it's job.
+
+**NOTE:** If the HTTP request is sent with another method than the ones specified, the validation will **NOT** fail, it will just be ignored.
+
+```python
+@validate(MyValidator, BodyFormats.JSON, methods=["POST", "PUT"])
+```
+## Rules syntax
+
+There are 2 ways rules can be declared:
+
+1. Arrays:
+   ```python
+   'username': ["required", "string"],
+   'title': [Rules.NULLABLE, Rules.STRING], # we can also use predefined constants instead of strings
+   'description': ["required_with:title', 'string', 'max:256"]
+    ```
+2. Piped strings:
+   ```python
+   'username': ["required|string"],
+   'title': ["nullable|string"],
+   'description': ["required_with:title|string|max:256"]
+   ```
+
+   **Note:** The rules are case sensitive.
+
+## Custom response
+By default, if the validation fails, a response similar to this will be returned:
+```js
+{
+  "errors": {
+    "password": [
+      "The password field confirmation does not match.",
+      "The password field must have more than 6 characters."
+    ]
+  },
+  "status": "Validation failure"
+}
+```
+But we can customize it however we want. Let's create a class that inherits `flaskvel.ValidationException`.
+```python
+# MyCustomException.py
+
+from flask import jsonify
+from flaskvel import ValidationException
+
+class MyCustomException(ValidationException):
+	def pretty_print(self):
+		return jsonify({
+			"validation": "failed",
+            "reasons": self._message,
+		})
+```
+
+Don't forget to tell Flaskvel to use the class just created.
+```python
+# main.py
+
+from flask import Flask, jsonify
+from flaskvel import Flaskvel, validate, BodyFormats
+
+from MyCustomException import MyCustomException
+
+app = Flask(__name__)
+Flaskvel(app, exception_class=MyCustomException)
+
+```
+
+```js
+{
+  "reasons": {
+    "password": [
+      "The password field confirmation does not match.",
+      "The password field must have more than 6 characters."
+    ]
+  },
+  "validation": "failed"
+}
+```
+
+## Register rules
+
+## Unregistered rules
+
+## Notes
 
 ---
 
@@ -106,7 +272,7 @@ FlaskVel is now installed. Check out the [Quickstart](#quickstart) or continue r
 - The field under validation must be formatted as an e-mail address. The regex used is the same as [Django's EmailValidator](https://github.com/django/django/blob/stable/1.3.x/django/core/validators.py#L151).
 
 ## ends_with:*foo, bar,...*
-- The field under validation must end with one of the given values.
+- For strings, files and numbers, the field under validation must end with one of the given values. For arrays, the last element must be one of the given values.
 
 ## file
 - The field under validation must be a successfully uploaded file.
@@ -194,6 +360,7 @@ FlaskVel is now installed. Check out the [Quickstart](#quickstart) or continue r
     - The value is `None`.
     - The value is an empty string.
     - The value is an empty array.
+    - The value is an empty json.
 
 ## required_if:*another_field,value1,value2,...*
 - The field under validation must be present and not empty *if* the *another_field* field is equal to any *value*.
@@ -223,7 +390,7 @@ FlaskVel is now installed. Check out the [Quickstart](#quickstart) or continue r
 'title': 'size:12'
 ```
 ```python
-# Validate that a provided integer equals 10...  
+# Validate that a provided integer equals 10...
 'seats': 'integer|size:10'
 ```
 ```python
