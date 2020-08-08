@@ -10,7 +10,8 @@ from MyCustomException import MyCustomException
 
 app = Flask(__name__)
 # todo: add DefaultMessages translation units
-Flaskvel(app, exception_class=MyCustomException, error_code=403)
+# Flaskvel(app, exception_class=MyCustomException, error_code=403)
+Flaskvel(app)
 
 def custom_handler(value, params, **kwargs):
 	return value in params

@@ -137,7 +137,7 @@ There are 2 ways rules can be declared:
 
    **Note:** The rules are case sensitive.
 
-## Messages syntax
+## Custom validation messages
 
 ## Custom error response
 By default, if the validation fails, the response will have HTTP error status code 400 and will be similar to this:
@@ -198,40 +198,86 @@ Now failed validation responses should have status code 403 and look like this:
 Besides the rules offered by default, you can extend the validator with your own custom rules. FlaskVel offers 2 ways to add your own custom rules.
 
 ### 1. Unregistered rules
-The easiest way to expand FlaskVel's functionality is to write your own `handler` and pass them as rules to the validator. Every `handler` must satisfy the following conditions:
+The easiest way to expand FlaskVel's functionality is to write your own `handlers` and pass them as rules to the validator. Every `handler` must satisfy the following conditions:
 - it must return either `True` or `False`
 - it will receive the folowing keyword parameters:
   - `value` - the value of the field being validated
   - `field_name` - the name of the field being validated
   - `params` - parameters of the rule
-  - `nullable` - a boolean 
-  - `err_msg_params` - a `dict` object where you can insert custom parameters for error messages; for more info see [Messages syntax](#messages-syntax)
-  - `processor` - an instance of the processor object that called the handler; for more info see [Processor](#processor)
+  - `nullable` - `True` if the field has been specified as [nullable](#nullable), `False` otherwise
+  - `err_msg_params` - a `dict` object where you can insert parameters for [custom validation messages](#custom-validation-messages)
+  - `processor` - an instance of the [Processor](#processor) class that called the `handler`
   - `rules` - a list of all the rules of the field being validated
 
-Let's suppose we want `order_number` field to be a palindrome numbers.
+Let's suppose we want `order_number` field to be an even number. We proceed by declaring a handler named `is_even` and pasing it as a rule for the field.
 ```python
 # MyValidator.py
 
-from flaskvel import Rules, Validator
+from flaskvel import Validator, Rules
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
         self.rules = {
-          "order_number": [self.palindrome]
+          "order_number": [Rules.NUMERIC, self.is_even]
         }
 
-    def palindrome(self, value, **kwargs):
-      value = str(value)
-      return value == value[::-1]
+        self.messages = {
+          "order_number.is_even": "Order number must be even"
+        }
+
+    def is_even(self, value, **kwargs):
+      return int(value) % 2 == 0
 ```
 
-**divisible example for passing parms to Unregistered rules**
+If we want to pass parameters to an unregistered rule, we have to create an intance of `flaskvel.ParsedRule` and pass the the parameters in a list as following:
+```python
+# MyValidator.py
+
+from flaskvel import Validator, Rules, ParsedRule
+
+class MyValidator(Validator):
+    def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.rules = {
+			"order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])], # here we pass a list containig our params for is_divisible
+		}
+
+		self.messages = {
+			"order_number.is_divisible": "Order number must be divisible by {divisor}"
+		}
+
+	def is_divisible(self, value, params, err_msg_params, **kwargs):
+		err_msg_params['divisor'] = params[0] # we populate err_msg_params to customize the message defined above
+		return int(value) % params[0] == 0
+```
+
+For more details on how to get other fields values, check if nullable etc. see [Processor](#processor).
 
 ### 2. Registered rules
+Registered rules are rules that can be used with the [default rules syntax](#rules-syntax), just like the ones provided by FlaskVel. 
+Although this proccess requires a bit of setup, the technique is recomended when you use an unregistered rule with parameters to validate more than one field.
+
+
+
+**NOTE:** You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
 
 ## Processor
+```python
+def get_field_type(self, field_name):
+
+def get_field_value(self, field_name):
+
+def get_field_rules(self, field_name):
+
+def is_field_present(self, field_name):
+
+def is_field_nullable(self, field_name):
+
+def should_bail(self, field_name):
+```
+
+## 
 
 ## Notes
 
@@ -434,7 +480,7 @@ class MyValidator(Validator):
 - The field under validation must be present and not empty *only when all* of the other specified fields are not present.
 
 ## same:*foo,bar,..*
-- The given *fields* must match the field under validation.
+- All of the given *fields* must match the field under validation.
 
 ## size:*value*
 - The field under validation must have a size matching the given *value*. For string data, *value* corresponds to the number of characters. For numeric data, value corresponds to a given integer/float *value* (the attribute must also have the [numeric](#numeric) or [integer](#integer) rule). For an array, size corresponds to the count of the array. For a json, *value* must be equal to the number of keys. For files, *size* corresponds to the file size in kilobytes.

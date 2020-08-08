@@ -180,6 +180,9 @@ class Processor():
 				continue
 		return result
 
+	def get_field_rules(self, field_name):
+		return self._parsed_rules[field_name]
+
 	def is_field_present(self, field_name):
 		if field_name in request.files:
 			return True
