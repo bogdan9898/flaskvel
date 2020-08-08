@@ -34,7 +34,7 @@ class Validator:
 			return # validation ignored for other methods
 		self.validate_body_format()
 		self.parse_rules()
-		result = self._processor.run()
+		result = self._processor._run()
 		# print("Validation result: {0}".format(result))
 		# print(self._processor.get_failed_validations())
 		if not result:

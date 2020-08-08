@@ -31,7 +31,7 @@ class Processor():
 	def get_failed_validations(self):
 		return self._failed_validations
 
-	def run(self):
+	def _run(self):
 		# update critical data
 		if self._messages is None:
 			self._messages = self._validator.get_messages()
@@ -45,8 +45,8 @@ class Processor():
 			failed_validations = {}
 
 			field_value = self.get_field_value(field_name)
-			nullable = self.is_field_nullable(rules)
-			bail = self.should_bail(rules)
+			nullable = self.is_field_nullable(field_name)
+			bail = self.should_bail(field_name)
 
 			for parsed_rule in rules:
 				rule_predicate = parsed_rule.get_predicate()
@@ -60,20 +60,20 @@ class Processor():
 					handler = rule_predicate
 					rule_predicate = rule_predicate.__name__
 				else:
-					handler = self.get_rule_handler(rule_predicate)
+					handler = self._get_rule_handler(rule_predicate)
 
 				err_msg_params = {}
-				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable, bail=bail, err_msg_params=err_msg_params, processor=self):
+				if not handler(field_name=field_name, value=field_value, params=params, nullable=nullable, err_msg_params=err_msg_params, processor=self, rules=rules):
 					validation_passed = False
 					failed_validations[rule_predicate] = [params, err_msg_params]
 					if bail:
 						self._failed_validations[field_name] = failed_validations
-						self._errors[field_name] = self.generate_errors(field_name)
+						self._errors[field_name] = self._generate_errors(field_name)
 						return validation_passed
 
 			if len(failed_validations) > 0:
 				self._failed_validations[field_name] = failed_validations
-				self._errors[field_name] = self.generate_errors(field_name)
+				self._errors[field_name] = self._generate_errors(field_name)
 
 		# 	# DELETE ME!
 		# 	field_type = self.get_field_type(field_name)
@@ -192,7 +192,8 @@ class Processor():
 			result = result[key]
 		return True
 
-	def is_field_nullable(self, rules):
+	def is_field_nullable(self, field_name):
+		rules = self._parsed_rules[field_name]
 		imply_nullable = [
 			RulesPredicates.NULLABLE,
 			RulesPredicates.REQUIRED_IF,
@@ -207,10 +208,10 @@ class Processor():
 				return True
 		return False
 
-	def should_bail(self, rules):
-		return RulesPredicates.BAIL in rules
+	def should_bail(self, field_name):
+		return RulesPredicates.BAIL in self._parsed_rules[field_name]
 
-	def generate_errors(self, field_name):
+	def _generate_errors(self, field_name):
 		errors_strings = []
 		for rule_predicate, params in self._failed_validations[field_name].items():
 			params, err_msg_params = params
@@ -316,7 +317,7 @@ class Processor():
 			return operator(file_size, int(size))
 		return False
 
-	def get_rule_handler(self, rule_predicate):
+	def _get_rule_handler(self, rule_predicate):
 		if rule_predicate in Flaskvel._registered_rules:
 			return Flaskvel._registered_rules[rule_predicate]
 		handler = 'handler_' + rule_predicate

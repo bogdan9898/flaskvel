@@ -1,8 +1,10 @@
-from flaskvel import Validator
+from flaskvel import Validator, Rules
 
 class CustomValidator(Validator):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.rules = {
-			'password': 'string|confirmed|min:6'
-		}
+            "username": ["required", "string"],
+            "password": ["required", "string", "min:8", "max:32", "confirmed"], 
+            "email": [Rules.REQUIRED, Rules.EMAIL] # we can also use predefined constants instead of strings
+        }

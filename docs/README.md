@@ -28,23 +28,27 @@ Flaskvel(app)
 
 Now we are ready to define our endpoint.
 ```python
+# main.py
+
 @app.route("/register", methods=["POST"])
 def register():
+    # some code for registering the user
+    # ...
     return jsonify({"status": "ok"}), 200
 ```
 
-To add validations let's create a class that contains the rules.
+To add validations let's create a class that derives from `flaskvel.Validator` and contains the rules.
 ```python
 # MyValidator.py
 
-from flaskvel import Rules, Validator
+from flaskvel import Validator, Rules
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs) # MUST always be called first
         self.rules = {
             "username": ["required", "string"],
-            "password": ["required", "min:8", "max:32", "confimed"], 
+            "password": ["required", "string", "min:8", "max:32", "confimed"], 
             "email": [Rules.REQUIRED, Rules.EMAIL] # we can also use predefined constants instead of strings
         }
 ```
@@ -68,7 +72,7 @@ def register():
 faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=400)
 ```
 - *app* - object returned by Flask()
-- *exception_class* - this parameter can be used to customize the format of the response sent when validation fails; see [Custom response](#custom-response)
+- *exception_class* - this parameter can be used to customize the format of the response sent when validation fails; see [Custom error response](#custom-error-response)
 - *error_code* - HTTP status code returned when validation fails
 
 ---
@@ -133,8 +137,10 @@ There are 2 ways rules can be declared:
 
    **Note:** The rules are case sensitive.
 
-## Custom response
-By default, if the validation fails, a response similar to this will be returned:
+## Messages syntax
+
+## Custom error response
+By default, if the validation fails, the response will have HTTP error status code 400 and will be similar to this:
 ```json
 {
   "errors": {
@@ -146,6 +152,7 @@ By default, if the validation fails, a response similar to this will be returned
   "status": "Validation failure"
 }
 ```
+
 But we can customize it however we want. Let's create a class that inherits `flaskvel.ValidationException`.
 ```python
 # MyCustomException.py
@@ -161,7 +168,7 @@ class MyCustomException(ValidationException):
 		})
 ```
 
-Don't forget to tell FlaskVel to use the class just created.
+Don't forget to tell FlaskVel to use the class just created and change the HTTP error status code to another value if you want to.
 ```python
 # main.py
 
@@ -171,11 +178,10 @@ from flaskvel import Flaskvel, validate, BodyFormats
 from MyCustomException import MyCustomException
 
 app = Flask(__name__)
-Flaskvel(app, exception_class=MyCustomException)
-
+Flaskvel(app, exception_class=MyCustomException, error_code=403)
 ```
 
-Now failed validation responses should look like this:
+Now failed validation responses should have status code 403 and look like this:
 ```json
 {
   "reasons": {
@@ -188,9 +194,44 @@ Now failed validation responses should look like this:
 }
 ```
 
-## Register rules
+## Custom rules
+Besides the rules offered by default, you can extend the validator with your own custom rules. FlaskVel offers 2 ways to add your own custom rules.
 
-## Unregistered rules
+### 1. Unregistered rules
+The easiest way to expand FlaskVel's functionality is to write your own `handler` and pass them as rules to the validator. Every `handler` must satisfy the following conditions:
+- it must return either `True` or `False`
+- it will receive the folowing keyword parameters:
+  - `value` - the value of the field being validated
+  - `field_name` - the name of the field being validated
+  - `params` - parameters of the rule
+  - `nullable` - a boolean 
+  - `err_msg_params` - a `dict` object where you can insert custom parameters for error messages; for more info see [Messages syntax](#messages-syntax)
+  - `processor` - an instance of the processor object that called the handler; for more info see [Processor](#processor)
+  - `rules` - a list of all the rules of the field being validated
+
+Let's suppose we want `order_number` field to be a palindrome numbers.
+```python
+# MyValidator.py
+
+from flaskvel import Rules, Validator
+
+class MyValidator(Validator):
+    def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+        self.rules = {
+          "order_number": [self.palindrome]
+        }
+
+    def palindrome(self, value, **kwargs):
+      value = str(value)
+      return value == value[::-1]
+```
+
+**divisible example for passing parms to Unregistered rules**
+
+### 2. Registered rules
+
+## Processor
 
 ## Notes
 
