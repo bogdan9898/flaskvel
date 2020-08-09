@@ -4,9 +4,9 @@ A small package that provides a convenient method to validate incoming HTTP requ
 ---
 
 # Instalation
-To install FlaskVel:
+To install FlaskVel run:
 ```
-$ pip install flaskvel
+pip install flaskvel
 ```
 FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the list on the left to quickly find what you need.
 
@@ -48,7 +48,7 @@ from flaskvel import Validator, Rules
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs) # MUST always be called first
+    super().__init__(*args, **kwargs) # MUST always be called first
         self.rules = {
             "username": ["required", "string"],
             "password": ["required", "string", "min:8", "max:32", "confimed"], 
@@ -96,15 +96,15 @@ def validate(validator_class, body_format, methods="*")
 # MyValidator.py
 
 class MyValidator(Validator):
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs) # MUST always be called first
-		self.rules = {
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs) # MUST always be called first
+    self.rules = {
             ...
-		}
+    }
 
-		self.messages = {
-			...
-		}
+    self.messages = {
+      ...
+    }
 ```
 - ***body_format*** - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the validation will fail:
 
@@ -165,6 +165,43 @@ There are 2 ways in which validation rules can be asigned to fields:
 
 ## Custom validation messages
 
+By default, FlaskVel offers a set of default validation failure messages that you can find [here](https://github.com/bogdan9898/flaskvel/blob/master/flaskvel/Constants/DefaultMessages.py), but the validator prioritizes your own messages if you provide them. To do so, override the `messages` attribute inside your own validator. This attribute should be an array of *field_name.rule* pairs and their corresponding error messages.
+
+1. Static messages
+
+```python
+from flaskvel import Validator, Rules
+
+class CustomValidator(Validator):
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.rules = {
+      "username": ["required", "string"],
+      "password": ["required", "string", "min:8", "max:32", "confirmed"], 
+      "email": [Rules.REQUIRED, Rules.EMAIL] # we can also use predefined constants instead of strings
+    }
+    
+    self.messages = {
+      "username.string": "Type of username is invalid",
+      "password.min": "Password must be between 8 and 32",
+      "password.max": "Password must be between 8 and 32",
+      "password": "Please confirm your password",
+      "email.required": "Email address is required"
+    }
+```
+
+2. Dynamic messages
+These messages can receive parameters from the validator. By default, a few arguments are provided: `field_name` as a keyword param and a list of all the params of that rule. 
+```python
+message.format(*params, field_name=field_name, **err_msg_params)
+```
+
+
+
+todo: write a good explaination for this shit...
+Daca dorim putem customiza aceste mesaje punandu le la dispozitie niste argumente speciale, le vom numi err_msg_params. Acest obiect va fi de tipul `dict` si va fi populat de catre functia `handler` a fiecare reguli. 
+
+
 ## Custom error response
 By default, if the validation fails, the response will have HTTP error status code 400 and will be similar to this:
 
@@ -172,8 +209,12 @@ By default, if the validation fails, the response will have HTTP error status co
 {
   "errors": {
     "password": [
-      "The password field confirmation does not match.",
+      "The password field does not match it's confirmation.",
       "The password field must have more than 6 characters."
+    ],
+    "username": [
+      "The username field is required.",
+      "The username field must be a string."
     ]
   },
   "status": "Validation failure"
@@ -189,11 +230,11 @@ from flask import jsonify
 from flaskvel import ValidationException
 
 class MyCustomException(ValidationException):
-	def pretty_print(self):
-		return jsonify({
-			"validation": "failed",
+  def pretty_print(self):
+    return jsonify({
+      "validation": "failed",
             "reasons": self._message, # self._message contains all the validation errors
-		})
+    })
 ```
 
 Don't forget to tell FlaskVel to use the class just created and change the HTTP error status code to another value if you want to.
@@ -216,8 +257,12 @@ Now the failed validation responses should have HTTP status code 403 and look li
 {
   "reasons": {
     "password": [
-      "The password field confirmation does not match.",
+      "The password field does not match it's confirmation.",
       "The password field must have more than 6 characters."
+    ],
+    "username": [
+      "The username field is required.",
+      "The username field must be a string."
     ]
   },
   "validation": "failed"
@@ -268,7 +313,7 @@ from flaskvel import Validator, Rules
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
         self.rules = {
           "order_number": [Rules.NUMERIC, self.is_even]
         }
@@ -290,18 +335,18 @@ from flaskvel import Validator, Rules, ParsedRule
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.rules = {
-			"order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])], # here we pass a list containig our params for is_divisible
-		}
+    super().__init__(*args, **kwargs)
+    self.rules = {
+      "order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])], # here we pass a list containig our params for is_divisible
+    }
 
-		self.messages = {
-			"order_number.is_divisible": "Order number must be divisible by {divisor}"
-		}
+    self.messages = {
+      "order_number.is_divisible": "Order number must be divisible by {divisor}"
+    }
 
-	def is_divisible(self, value, params, err_msg_params, **kwargs):
-		err_msg_params['divisor'] = params[0] # we populate err_msg_params to customize the message defined above
-		return int(value) % params[0] == 0
+  def is_divisible(self, value, params, err_msg_params, **kwargs):
+    err_msg_params['divisor'] = params[0] # we populate err_msg_params to customize the message defined above
+    return int(value) % params[0] == 0
 ```
 
 For more details on how to get another field's values, check if nullable etc. see [Processor](#processor).
@@ -318,8 +363,8 @@ Let's take the example above and register a new rule named `divisible`.
 # main.py
 
 def is_divisible(value, params, err_msg_params, **kwargs):
-		err_msg_params['divisor'] = params[0]
-		return int(value) % int(params[0]) == 0
+    err_msg_params['divisor'] = params[0]
+    return int(value) % int(params[0]) == 0
 
 Flaskvel.register_rule('divisible', is_divisible)
 ```
@@ -333,14 +378,14 @@ from flaskvel import Validator, Rules, ParsedRule
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.rules = {
-			"order_number": [Rules.NUMERIC, 'divisible:2']
-		}
+    super().__init__(*args, **kwargs)
+    self.rules = {
+      "order_number": [Rules.NUMERIC, 'divisible:2']
+    }
 
-		self.messages = {
-			"order_number.divisible": "Order number must be divisible by {divisor}"
-		}
+    self.messages = {
+      "order_number.divisible": "Order number must be divisible by {divisor}"
+    }
 ```
 
 > You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
