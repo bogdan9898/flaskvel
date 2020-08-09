@@ -1,0 +1,2 @@
+* [Home](/)
+* [Rules](rules.md)
