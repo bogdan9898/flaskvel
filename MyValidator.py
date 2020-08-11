@@ -7,7 +7,7 @@ class MyValidator(Validator):
 			'username': [Rules.REQUIRED, Rules.STRING],
 			
 			'password': [Rules.REQUIRED, self.is_valid_passwd],
-			'unreg_paramed_rule': [Rules.REQUIRED, ParsedRule(self.validate_unreg_paramed_rule, [1,2,3])],
+			# 'unreg_paramed_rule': [Rules.REQUIRED, ParsedRule(self.validate_unreg_paramed_rule, [1,2,3])],
 
 			'email': [Rules.EMAIL, Rules.NULLABLE],
 			

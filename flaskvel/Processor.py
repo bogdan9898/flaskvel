@@ -8,7 +8,6 @@ import os
 import operator
 from dateutil.parser import parse as parse_date
 from datetime import datetime
-from flask import request
 from werkzeug.datastructures import FileStorage # comes packaged with flask
 from PIL import Image
 
@@ -24,6 +23,7 @@ class Processor():
 		self._failed_validations = {} # info about failed validations
 		self._parsed_rules = None
 		self._messages = None
+		self._request = validator.get_request()
 
 	def get_errors(self):
 		return self._errors
@@ -75,11 +75,6 @@ class Processor():
 				self._failed_validations[field_name] = failed_validations
 				self._errors[field_name] = self._generate_errors(field_name)
 
-		# 	# DELETE ME!
-		# 	field_type = self.get_field_type(field_name)
-		# 	print("{0} -> {1} / {2}".format(field_name, field_type, type(self.get_field_value(field_name))))
-		# print("\n")
-		# # DELETE ME!
 		return validation_passed
 
 	def get_field_type(self, field_name):
@@ -92,7 +87,7 @@ class Processor():
 			RulesPredicates.INTEGER,
 			RulesPredicates.NUMERIC,]:
 			if rule in rules:
-				if self.handler_integer(value=value) or self.handler_numeric(value=value):
+				if self.handler_numeric(field_name=field_name, value=value) or self.handler_integer(field_name=field_name, value=value) :
 					return FieldTypes.NUMERIC
 				else:
 					return FieldTypes.UNKOWN
@@ -102,7 +97,7 @@ class Processor():
 			RulesPredicates.IMAGE,
 			RulesPredicates.DIMENSIONS,]:
 			if rule in rules:
-				if self.handler_file(value=value):
+				if self.handler_file(field_name=field_name, value=value):
 					return FieldTypes.FILE
 				else:
 					return FieldTypes.UNKOWN
@@ -112,7 +107,7 @@ class Processor():
 			RulesPredicates.ALPHA,
 			RulesPredicates.ALPHA_DASH,]:
 			if rule in rules:
-				if self.handler_string(value=value):
+				if self.handler_string(field_name=field_name, value=value):
 					return FieldTypes.STRING
 				else:
 					return FieldTypes.UNKOWN
@@ -121,14 +116,14 @@ class Processor():
 			RulesPredicates.ARRAY,
 			RulesPredicates.DISTINCT,]:
 			if rule in rules:
-				if self.handler_array(value=value):
+				if self.handler_array(field_name=field_name, value=value):
 					return FieldTypes.ARRAY
 				else:
 					return FieldTypes.UNKOWN
 
 		for rule in [RulesPredicates.JSON,]:
 			if rule in rules:
-				if self.handler_json(value=value):
+				if self.handler_json(field_name=field_name, value=value):
 					return FieldTypes.JSON
 				else:
 					return FieldTypes.UNKOWN
@@ -146,13 +141,13 @@ class Processor():
 			return FieldTypes.JSON
 
 		if isinstance(value, str):
-			if self.handler_integer(value=value) or self.handler_numeric(value=value):
+			if self.handler_numeric(field_name=field_name, value=value) or self.handler_integer(field_name=field_name, value=value):
 				return FieldTypes.NUMERIC
 
-			if self.handler_array(value=value):
+			if self.handler_array(field_name=field_name, value=value):
 				return FieldTypes.ARRAY
 
-			if self.handler_json(value=value):
+			if self.handler_json(field_name=field_name, value=value):
 				return FieldTypes.JSON
 
 			return FieldTypes.STRING
@@ -160,10 +155,10 @@ class Processor():
 		return FieldTypes.UNKOWN
 
 	def get_field_value(self, field_name):
-		if field_name in request.files:
-			return request.files.get(field_name)
+		if field_name in self._request.files:
+			return self._request.files.get(field_name)
 
-		result = request.json if request.is_json else request.form
+		result = self._request.json if self._request.is_json else self._request.form
 		keys = field_name.split('.')
 		for key in keys:
 			if not isinstance(result, dict):
@@ -184,10 +179,10 @@ class Processor():
 		return self._parsed_rules[field_name]
 
 	def is_field_present(self, field_name):
-		if field_name in request.files:
+		if field_name in self._request.files:
 			return True
 
-		result = request.json if request.is_json else request.form
+		result = self._request.json if self._request.is_json else self._request.form
 		keys = field_name.split('.')
 		for key in keys:
 			if key not in result:
@@ -228,7 +223,7 @@ class Processor():
 			if not message:
 				errors_strings.append('Validation failed for: ' + str(rule_predicate))
 			else:
-				errors_strings.append(message.format(*params, field_name=field_name, **err_msg_params))
+				errors_strings.append(message.format(*params, **err_msg_params))
 
 		return errors_strings
 
@@ -328,53 +323,68 @@ class Processor():
 			raise Exception('No handler found for rule <{0}>.\nThis may be caused by a misspelled rule or by using a custom rule with an unregistered handler.'.format(rule_predicate))
 		return getattr(self, handler)
 
-	def handler_accepted(self, **kwargs):
-		return kwargs['value'] in ['yes', 1, '1', 'on', True, 'true']
+	def handler_accepted(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return value in ['yes', 1, '1', 'on', True, 'true']
 
-	def handler_active_url(self, **kwargs):
+	def handler_active_url(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		try:
-			if requests.head(kwargs['value']).status_code < 400:
+			if requests.head(value).status_code < 400:
 				return True
 		except:
 			return False
 
-	def handler_after(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.AFTER)
+	def handler_after(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.AFTER)
 		try:
-			return parse_date(kwargs['value']) > parse_date(kwargs['params'][0])
+			return parse_date(value) > parse_date(params[0])
 		except:
 			return False 
 
-	def handler_after_or_equal(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.AFTER_OR_EQUAL)
+	def handler_after_or_equal(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.AFTER_OR_EQUAL)
 		try:
-			return parse_date(kwargs['value']) >= parse_date(kwargs['params'][0])
+			return parse_date(value) >= parse_date(params[0])
 		except:
 			return False
 
-	def handler_alpha(self, **kwargs):
+	def handler_alpha(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile("^[a-z\s]*$", re.IGNORECASE)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_alpha_dash(self, **kwargs):
+	def handler_alpha_dash(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile("^[a-z\-_\s]*$", re.IGNORECASE)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_alpha_num(self, **kwargs):
+	def handler_alpha_num(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile("^[a-z0-9\s]*$", re.IGNORECASE)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_array(self, **kwargs):
-		value = kwargs['value']
+	def handler_array(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		if isinstance(value, list):
 			return True
 		if isinstance(value, str):
@@ -384,100 +394,115 @@ class Processor():
 				return False
 		return False
 
-	def handler_before(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.BEFORE)
+	def handler_before(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.BEFORE)
 		try:
-			return parse_date(kwargs['value']) < parse_date(kwargs['params'][0])
+			return parse_date(value) < parse_date(params[0])
 		except:
 			return False
 
-	def handler_before_or_equal(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.BEFORE_OR_EQUAL)
+	def handler_before_or_equal(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.BEFORE_OR_EQUAL)
 		try:
-			return parse_date(kwargs['value']) <= parse_date(kwargs['params'][0])
+			return parse_date(value) <= parse_date(params[0])
 		except:
 			return False
 
-	def handler_between(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int, int], RulesPredicates.BETWEEN)
-		params = kwargs['params']
-		return (self._compare_single_field_size(kwargs['field_name'], params[0], operator.gt) and
-				self._compare_single_field_size(kwargs['field_name'], params[1], operator.lt))
+	def handler_between(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int, int], RulesPredicates.BETWEEN)
+		return (self._compare_single_field_size(field_name, params[0], operator.gt) and
+				self._compare_single_field_size(field_name, params[1], operator.lt))
 
-	def handler_boolean(self, **kwargs):
-		value = kwargs['value']
+	def handler_boolean(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		if isinstance(value, bool):
 			return True
 		return value in [1, 0, '1', '0', True, False]
 
-	def handler_confirmed(self, **kwargs):
-		return kwargs['value'] == self.get_field_value("{0}_confirmation".format(kwargs['field_name']))
+	def handler_confirmed(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return value == self.get_field_value("{0}_confirmation".format(field_name))
 
-	def handler_date(self, **kwargs):
+	def handler_date(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		try:
-			return parse_date(kwargs['value'])
+			return parse_date(value)
 		except:
 			return False
 
-	def handler_date_equals(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.DATE_EQUALS)
+	def handler_date_equals(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.DATE_EQUALS)
 		try:
-			return parse_date(kwargs['value']) == parse_date(kwargs['params'][0])
+			return parse_date(value) == parse_date(params[0])
 		except:
 			return False
 
-	def handler_date_format(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.DATE_FORMAT)
-		value = kwargs['value']
-		date_format = kwargs['params'][0]
+	def handler_date_format(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.DATE_FORMAT)
 		try:
-			datetime.strptime(value, date_format)
+			datetime.strptime(value, params[0])
 			return True
 		except:
 			return False
 
-	def handler_different(self, **kwargs):
-		value = kwargs['value']
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_different(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for param in params:
 			other_value = self.get_field_value(param)
 			if value == other_value:
 				return False
 		return True
 
-	def handler_digits(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int], RulesPredicates.DIGITS)
-		value = kwargs['value']
+	def handler_digits(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int], RulesPredicates.DIGITS)
 		if isinstance(value, str):
-			if value.isnumeric() and len(value) == int(kwargs['params'][0]):
+			if value.isnumeric() and len(value) == int(params[0]):
 				return True
 		if isinstance(value, int) or isinstance(value, float):
 			value = str(value)
 			value = value.replace(".", "")
-			if  len(value) == int(kwargs['params'][0]):
+			if  len(value) == int(params[0]):
 				return True
 		return False
 
-	def handler_digits_between(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int, int], RulesPredicates.DIGITS_BETWEEN)
-		value = kwargs['value']
+	def handler_digits_between(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int, int], RulesPredicates.DIGITS_BETWEEN)
 		if isinstance(value, str):
 			length = len(value)
-			if value.isnumeric() and int(kwargs['params'][0]) < length and length < int(kwargs['params'][1]):
+			if value.isnumeric() and int(params[0]) < length and length < int(params[1]):
 				return True
 		if isinstance(value, int) or isinstance(value, float):
 			value = str(value)
 			value = value.replace(".", "")
 			length = len(value)
-			if  int(kwargs['params'][0]) < length and length < int(kwargs['params'][1]):
+			if  int(params[0]) < length and length < int(params[1]):
 				return True
 		return False
 
-	def handler_dimensions(self, **kwargs):
-		params = kwargs['params']
+	def handler_dimensions(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		self._assert_params_types(params, [str for _ in range(len(params))], RulesPredicates.DIMENSIONS)
-		kwargs['err_msg_params']['all_params'] = params
 
 		valid_params = []
 		patterns = [
@@ -500,7 +525,7 @@ class Processor():
 			raise Exception("Invalid parameters for rule 'dimensions': " + str(set(params) - set(valid_params)))
 
 		try:
-			image = Image.open(kwargs['value'])
+			image = Image.open(value)
 			width, height = image.size
 			for dim_rule, dim_params in dim_rules.items():
 				if dim_rule == "min_width":
@@ -528,8 +553,9 @@ class Processor():
 		except:
 			return False
 
-	def handler_distinct(self, **kwargs):
-		value = kwargs['value']
+	def handler_distinct(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		if isinstance(value, list):
 			return len(set(value)) == len(value)
 		elif isinstance(value, str):
@@ -540,23 +566,25 @@ class Processor():
 				return True
 		return True
 
-	def handler_email(self, **kwargs):
+	def handler_email(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile(
 			r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"  # dot-atom
 			# quoted-string, see also http://tools.ietf.org/html/rfc2822#section-3.2.5
 			r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"'
-			r')@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$', re.IGNORECASE)  # domain)
+			r')@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$', re.IGNORECASE)  # domain
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_ends_with(self, **kwargs):
-		value = kwargs['value']
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_ends_with(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 
-		field_type = self.get_field_type(kwargs['field_name'])
+		field_type = self.get_field_type(field_name)
 		if field_type == FieldTypes.NUMERIC or field_type == FieldTypes.STRING:
 			value = str(value)
 			for param in params:
@@ -596,45 +624,60 @@ class Processor():
 				return False
 		return False
 
-	def handler_file(self, **kwargs):
-		return isinstance(kwargs['value'], FileStorage)
+	def handler_file(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return isinstance(value, FileStorage)
 
-	def handler_filled(self, **kwargs):
-		if self.is_field_present(kwargs['field_name']):
-			return not kwargs['value'] == None
+	def handler_filled(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		if self.is_field_present(field_name):
+			return not value == None
 		return True
 
-	def handler_gt(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.GT)
-		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.gt)
+	def handler_gt(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.GT)
+		return self._compare_fields_size(field_name, params[0], operator.gt)
 
-	def handler_gte(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.GTE)
-		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.ge)
+	def handler_gte(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.GTE)
+		return self._compare_fields_size(field_name,params[0], operator.ge)
 
-	def handler_image(self, **kwargs):
+	def handler_image(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		try:
-			return kwargs['value'].filename.split(".")[-1] in ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'svg', 'webp']
+			return value.filename.split(".")[-1] in ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'svg', 'webp']
 		except:
 			return False
 
-	def handler_in(self, **kwargs):
-		kwargs['err_msg_params']['all_params'] = kwargs['params']
-		return kwargs['value'] in kwargs['params']
+	def handler_in(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
+		return value in params
 
-	def handler_in_array(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.IN_ARRAY)
-		other = self.get_field_value(kwargs['params'][0])
+	def handler_in_array(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.IN_ARRAY)
+		other = self.get_field_value(params[0])
 		try:
 			if not isinstance(other, list):
 				other = ast.literal_eval(other)
-			return isinstance(other, list) and kwargs['value'] in other
+			return isinstance(other, list) and value in other
 		except:
 			return False
 
-	def handler_integer(self, **kwargs):
-		value = kwargs['value']
-		if isinstance(value, int) or isinstance(value, float):
+	def handler_integer(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		if isinstance(value, int):
 			return True
 		try:
 			int(value)
@@ -642,18 +685,23 @@ class Processor():
 		except:
 			return False
 
-	def handler_ip(self, **kwargs):
-		value = kwargs['value']
-		return self.handler_ipv4(value=value) or self.handler_ipv6(value=value)
+	def handler_ip(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return self.handler_ipv4(field_name=field_name, value=value) or self.handler_ipv6(field_name=field_name, value=value)
 
-	def handler_ipv4(self, **kwargs):
+	def handler_ipv4(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}$')
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_ipv6(self, **kwargs):
+	def handler_ipv6(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile(
 			r'([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'				# 1:2:3:4:5:6:7:8
 			r'([0-9a-fA-F]{1,4}:){1,7}:|'								# 1::                              1:2:3:4:5:6:7::
@@ -673,12 +721,13 @@ class Processor():
 			r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])', re.IGNORECASE	# 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33 (IPv4-Embedded IPv6 Address)
 		)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_json(self, **kwargs):
-		value = kwargs['value']
+	def handler_json(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		if isinstance(value, dict):
 			return True
 		if isinstance(value, str):
@@ -689,52 +738,69 @@ class Processor():
 				return False
 		return False
 
-	def handler_lt(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.LT)
-		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.lt)
+	def handler_lt(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.LT)
+		return self._compare_fields_size(field_name, params[0], operator.lt)
 
-	def handler_lte(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.LTE)
-		return self._compare_fields_size(kwargs['field_name'], kwargs['params'][0], operator.le)
+	def handler_lte(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.LTE)
+		return self._compare_fields_size(field_name, params[0], operator.le)
 
-	def handler_max(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int], RulesPredicates.MAX)
-		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.le)
+	def handler_max(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int], RulesPredicates.MAX)
+		return self._compare_single_field_size(field_name, params[0], operator.le)
 
-	def handler_mimetypes(self, **kwargs):
+	def handler_mimetypes(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		try:
-			return kwargs['value'].mimetype in kwargs['params']
+			return value.mimetype in params
 		except:
 			return False
 
-	def handler_min(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int], RulesPredicates.MIN)
-		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.ge)
+	def handler_min(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int], RulesPredicates.MIN)
+		return self._compare_single_field_size(field_name, params[0], operator.ge)
 
-	def handler_not_in(self, **kwargs):
-		kwargs['err_msg_params']['all_params'] = kwargs['params']
-		return kwargs['value'] not in kwargs['params']
+	def handler_not_in(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
+		return value not in params
 
-	def handler_not_in_array(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.NOT_IN_ARRAY)
-		other = self.get_field_value(kwargs['params'][0])
+	def handler_not_in_array(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.NOT_IN_ARRAY)
+		other = self.get_field_value(params[0])
 		try:
 			if not isinstance(other, list):
 				other = ast.literal_eval(other)
-			return isinstance(other, list) and kwargs['value'] not in other
+			return isinstance(other, list) and value not in other
 		except:
 			return False
 
-	def handler_not_regex(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.NOT_REGEX)
+	def handler_not_regex(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.NOT_REGEX)
 		try:
-			pattern = re.compile(kwargs['params'][0])
-			return pattern.match(kwargs['value']) is None
+			pattern = re.compile(params[0])
+			return pattern.match(value) is None
 		except:
 			return False
 
-	def handler_numeric(self, **kwargs):
-		value = kwargs['value']
+	def handler_numeric(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		if isinstance(value, int) or isinstance(value, float):
 			return True
 		try:
@@ -743,94 +809,108 @@ class Processor():
 		except:
 			return False
 
-	def handler_present(self, **kwargs):
-		return not kwargs['value'] == None or self.is_field_present(kwargs['field_name'])
+	def handler_present(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return not value == None or self.is_field_present(field_name)
 
-	def handler_regex(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str], RulesPredicates.REGEX)
+	def handler_regex(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str], RulesPredicates.REGEX)
 		try:
-			pattern = re.compile(kwargs['params'][0])
-			return pattern.match(kwargs['value']) is not None
+			pattern = re.compile(params[0])
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_required(self, **kwargs):
-		return kwargs['value'] != None
+	def handler_required(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return value != None
 
-	def handler_required_if(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str, str], RulesPredicates.REQUIRED_IF)
-		params = kwargs['params']
-		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
+	def handler_required_if(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['the_rest_of_params'] = params[1:]
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str, str], RulesPredicates.REQUIRED_IF)
 		other_value = self.get_field_value(params[0])
 		# if not other_value in params[1:]:
 		# 	return True
 		# else:
-		# 	return kwargs['value'] is not None
-		return not other_value in params[1:] or kwargs['value'] is not None
+		# 	return value is not None
+		return not other_value in params[1:] or value is not None
 
-	def handler_required_unless(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [str, str], RulesPredicates.REQUIRED_UNLESS)
-		params = kwargs['params']
-		kwargs['err_msg_params']['the_rest_of_params'] = params[1:]
+	def handler_required_unless(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['the_rest_of_params'] = params[1:]
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [str, str], RulesPredicates.REQUIRED_UNLESS)
 		other_value = self.get_field_value(params[0])
 		# if other_value in params[1:]:
 		# 	return True
 		# else:
-		# 	return kwargs['value'] is not None
-		return other_value in params[1:] or kwargs['value'] is not None
+		# 	return value is not None
+		return other_value in params[1:] or value is not None
 
-	def handler_required_with(self, **kwargs):
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_required_with(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for field in params:
 			if self.get_field_value(field) is not None:
-				return kwargs['value'] is not None
+				return value is not None
 		return True
 
-	def handler_required_with_all(self, **kwargs):
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_required_with_all(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for field in params:
 			if self.get_field_value(field) is None:
 				return True
-		return kwargs['value'] is not None
+		return value is not None
 
-	def handler_required_without(self, **kwargs):
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_required_without(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for field in params:
 			if self.get_field_value(field) is None:
-				return kwargs['value'] is not None
+				return value is not None
 		return True
 
-	def handler_required_without_all(self, **kwargs):
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_required_without_all(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for field in params:
 			if self.get_field_value(field) is not None:
 				return True
-		return kwargs['value'] is not None
+		return value is not None
 
-	def handler_same(self, **kwargs):
-		value = kwargs['value']
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_same(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 		for param in params:
 			other_value = self.get_field_value(param)
 			if not value == other_value:
 				return False
 		return True
 
-	def handler_size(self, **kwargs):
-		self._assert_params_types(kwargs['params'], [int], RulesPredicates.SIZE)
-		return self._compare_single_field_size(kwargs['field_name'], kwargs['params'][0], operator.eq)
+	def handler_size(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		self._assert_params_types(params, [int], RulesPredicates.SIZE)
+		return self._compare_single_field_size(field_name, params[0], operator.eq)
 
-	def handler_starts_with(self, **kwargs):
-		value = kwargs['value']
-		params = kwargs['params']
-		kwargs['err_msg_params']['all_params'] = params
+	def handler_starts_with(self, field_name, value, params, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['all_params'] = params
+			err_msg_params['field_name'] = field_name
 
-		field_type = self.get_field_type(kwargs['field_name'])
+		field_type = self.get_field_type(field_name)
 		if field_type == FieldTypes.NUMERIC or field_type == FieldTypes.STRING:
 			value = str(value)
 			for param in params:
@@ -867,13 +947,19 @@ class Processor():
 				return False
 		return False
 
-	def handler_string(self, **kwargs):
-		return isinstance(kwargs['value'], str)
+	def handler_string(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return isinstance(value, str)
 
-	def handler_timezone(self, **kwargs):
-		return kwargs['value'] in pytz.all_timezones
+	def handler_timezone(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
+		return value in pytz.all_timezones
 
-	def handler_url(self, **kwargs):
+	def handler_url(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile(
 			r'^(?:http|ftp)s?://' # optional http:// or https://
 			r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
@@ -882,13 +968,15 @@ class Processor():
 			r'(?::\d+)?' # optional port
 			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False
 
-	def handler_uuid(self, **kwargs):
+	def handler_uuid(self, field_name, value, err_msg_params=None, **kwargs):
+		if err_msg_params is not None:
+			err_msg_params['field_name'] = field_name
 		pattern = re.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 		try:
-			return pattern.match(kwargs['value']) is not None
+			return pattern.match(value) is not None
 		except:
 			return False

@@ -8,9 +8,9 @@ To install FlaskVel run:
 ```
 pip install flaskvel
 ```
-FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the list on the left to quickly find what you need.
+FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the search bar on the left to quickly find what you need.
 
-!> This package only works with Python 3
+!> This package only works with Python 3.
 
 ---
 
@@ -89,7 +89,7 @@ faskvel.Flaskvel(app, exception_class=flaskvel.ValidationException, error_code=4
 ## The decorator
 
 ```python
-def validate(validator_class, body_format, methods="*")
+def validate(validator_class, body_format=BodyFormats.ANY, methods="*")
 ```
 
 - ***validator_class*** - a class derived from `flaskvel.Validator` that contains the desired rules and messages:
@@ -108,7 +108,9 @@ class MyValidator(Validator):
       ...
     }
 ```
-- ***body_format*** - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type. If the body received has a different type, the validation will fail:
+- ***body_format*** - the type of body that the validator should consider valid: `flaskvel.BodyFormat.JSON`, `flaskvel.BodyFormat.FORM` or `flaskvel.BodyFormat.ANY` to validate every type.
+
+!> If the body received has a different type, the validation will **fail** with an error similar to this:
 
 ```json
 {
@@ -122,10 +124,20 @@ class MyValidator(Validator):
 !> If the HTTP request is sent with another method than the one specified, the validation will just be ignored, **NOT** fail.
 
 ```python
-@validate(MyValidator, BodyFormats.JSON, methods=["POST", "PUT"])
+# a few examples how to use it
+
+@validate(MyValidator, body_format=BodyFormats.JSON, methods=["POST", "PUT"])
+
+-----------------------------------------------------------------------------
+
+@validate(MyValidator, methods=["GET"])
+
+-----------------------------------------------------------------------------
+
+@validate(MyValidator, body_format=BodyFormats.FORM)
 ```
 
-!> `@validate` must be positioned after `@app.route`.
+!> The decorator `@validate(...)` must be positioned after `@app.route(...)`.
 
 ## Rules syntax
 
@@ -138,8 +150,9 @@ There are 2 ways in which validation rules can be asigned to fields:
   ```python
   self.rules = {
   'username': "required",
-  'title': Rules.NULLABLE, # we can also use predefined constants instead of strings
-  'description': "required_with:title"
+  'title': Rules.NULLABLE, # we can also use predefined constants instead of strings, don't forget to import flaskvel.Rules
+  'description': "required_with:title",
+  'genre': "nullable"
   }
   ```
 
@@ -149,7 +162,8 @@ There are 2 ways in which validation rules can be asigned to fields:
   self.rules = {
   'username': ["required", "string"],
   'title': [Rules.NULLABLE, Rules.STRING],
-  'description': ["required_with:title', 'string', 'max:256"]
+  'description': ["required_with:title', 'string', 'max:256"],
+  'genre': ["nullable", "in:thriller,fantasy,romance"]
   }
   ```
 
@@ -157,19 +171,24 @@ There are 2 ways in which validation rules can be asigned to fields:
   
   !> Piped strings are **NOT** allowed inside arrays.
 
+  !> We recommend to not use piped strings when working with [regex](rules#regexpattern) and [not_regex](rules#not_regexpattern).
+
   ```python
   self.rules = {
   'username': "required|string",
   'title': "nullable|string",
-  'description': "required_with:title|string|max:256"
+  'description': "required_with:title|string|max:256",
+  'genre': "nullable|in:thriller,fantasy,romance"
   }
   ```
 
 ## Custom validation messages
 
-By default, FlaskVel offers a set of default validation failure messages that you can find [here](https://github.com/bogdan9898/flaskvel/blob/master/flaskvel/Constants/DefaultMessages.py), but the validator prioritizes your own messages if you provide them. To do so, override the `messages` attribute inside your own validator. This attribute should be an array of *field_name.rule* pairs and their corresponding error messages.
+By default, FlaskVel offers a set of default validation failure messages that you can find [here](https://github.com/bogdan9898/flaskvel/blob/master/flaskvel/Constants/DefaultMessages.py), but the validator prioritizes your own messages if you provide them. To do so, override the `messages` attribute inside your own validator class. This attribute should be a `dict` of *field_name.rule* pairs and their corresponding error messages.
 
-1. Static messages
+### 1. Static messages 
+
+- Simple to use, hardcoded strings
 
 ```python
 from flaskvel import Validator, Rules
@@ -187,22 +206,71 @@ class CustomValidator(Validator):
       "username.string": "Type of username is invalid",
       "password.min": "Password must be between 8 and 32",
       "password.max": "Password must be between 8 and 32",
-      "password": "Please confirm your password",
+      "password.confirmed": "Please confirm your password",
       "email.required": "Email address is required"
     }
 ```
 
-2. Dynamic messages
-These messages can receive parameters from the validator. By default, a few arguments are provided: `field_name` as a keyword param and a list of all the params of that rule. 
+### 2. Dynamic messages
+
+- These messages are parameterized string that are formated after all rules are validated by the [processor](#processor) as following:
+
 ```python
-message.format(*params, field_name=field_name, **err_msg_params)
+message.format(*params, **err_msg_params)
 ```
 
+- *params* - a list of all the params of that rule
+- *err_msg_params* - `dict` object containig all your custom arguments populated inside the `handler` function
 
+In the next example we'll [register a new rule](#_2-registered-rules) named `my_custom_rule` just for demonstration purposes:
+```python
+# main.py
 
-todo: write a good explaination for this shit...
-Daca dorim putem customiza aceste mesaje punandu le la dispozitie niste argumente speciale, le vom numi err_msg_params. Acest obiect va fi de tipul `dict` si va fi populat de catre functia `handler` a fiecare reguli. 
+def my_handler(err_msg_params, **kwargs): # go to [1. Unregstered rules] to read about all the arguments that a handler functions can have
+  # you can use err_msg_params to pass information to the final error message
+  err_msg_params['random_words_list'] = ["agreement", "force", "fluttering", "treat", "jam"]
+  err_msg_params['useful_link'] = "https://youtu.be/dQw4w9WgXcQ"
+  err_msg_params['field_name'] = field_name
+  result = False
+  # ...
+  # complex validation code
+  # ...
+  return result
 
+Flaskvel.register_rule('my_custom_rule', my_handler)
+```
+
+Now create the validator class which uses a dynamic message.
+
+```python
+# MyValidator.py
+
+from flaskvel import Validator, Rules, ParsedRule
+
+class MyValidator(Validator):
+    def __init__(self, *args, **kwargs):
+      super().__init__(*args, **kwargs)
+      self.rules = {
+        "test_field": [Rules.REQUIRED, 'my_custom_rule:param1,param2,param3'],
+      }
+
+      self.messages = {
+        "test_field.my_custom_rule": "My name is {field_name}, these are my parameters: {0}, {1}, {2}, here is a useful link: {useful_link} and a list of random words: {random_words_list}."
+      }
+```
+
+If out validation fails, we should get a response like this:
+
+```json
+{
+  "errors": {
+    "test_field": [
+      "My name is test_field, these are my parameters: param1, param2, param3, here is a useful link: https://youtu.be/dQw4w9WgXcQ and a list of random words: ['agreement', 'force', 'fluttering', 'treat', 'jam']."
+    ]
+  },
+  "status": "Validation failure"
+}
+```
 
 ## Custom error response
 By default, if the validation fails, the response will have HTTP error status code 400 and will be similar to this:
@@ -272,7 +340,7 @@ Now the failed validation responses should have HTTP status code 403 and look li
 ```
 
 ## Stopping on first validation failure
-Sometimes you may wish to stop running the validation after the first failure. To do so, assign [bail](#bail) to the field:
+Sometimes you may wish to stop running the validation after the first failure. To do so, assign [bail](rules#bail) to the field:
 
 ```python
 self.rules = {
@@ -301,8 +369,8 @@ The easiest way to expand FlaskVel's functionality is to write your own `handler
   - `value` - the value of the field being validated
   - `field_name` - the name of the field being validated
   - `params` - a list of all the parameters of the rule
-  - `nullable` - is `True` if the field has been specified as [nullable](#nullable), `False` otherwise
-  - `err_msg_params` - a `dict` object where you can insert parameters for [custom validation messages](#custom-validation-messages)
+  - `nullable` - is `True` if the field has been specified as [nullable](rules#nullable), `False` otherwise
+  - `err_msg_params` - a `dict` object where you can insert data for [custom validation messages](#custom-validation-messages)
   - `processor` - an instance of the [Processor](#processor) class that called the `handler`, used to get information about other fields
   - `rules` - a list of all the rules of the field being validated
 
@@ -315,14 +383,14 @@ from flaskvel import Validator, Rules
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-        self.rules = {
-          "order_number": [Rules.NUMERIC, self.is_even]
-        }
+      super().__init__(*args, **kwargs)
+      self.rules = {
+        "order_number": [Rules.NUMERIC, self.is_even]
+      }
 
-        self.messages = {
-          "order_number.is_even": "Order number must be even"
-        }
+      self.messages = {
+        "order_number.is_even": "Order number must be even"
+      }
 
     def is_even(self, value, **kwargs):
       return int(value) % 2 == 0
@@ -337,17 +405,17 @@ from flaskvel import Validator, Rules, ParsedRule
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.rules = {
-      "order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])], # here we pass a list containig our params for is_divisible
-    }
+      super().__init__(*args, **kwargs)
+      self.rules = {
+        "order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])], # pass a list containig the params for is_divisible
+      }
 
-    self.messages = {
-      "order_number.is_divisible": "Order number must be divisible by {divisor}"
-    }
+      self.messages = {
+        "order_number.is_divisible": "Order number must be divisible by {divisor}"
+      }
 
   def is_divisible(self, value, params, err_msg_params, **kwargs):
-    err_msg_params['divisor'] = params[0] # we populate err_msg_params to customize the message defined above
+    err_msg_params['divisor'] = params[0] # populate err_msg_params to customize the message defined above
     return int(value) % params[0] == 0
 ```
 
@@ -359,7 +427,7 @@ Although this proccess requires a bit of setup, it is recomended when you want t
 
 Let's take the example above and register a new rule named `divisible`.
 
-!> Be carefull when choosing a name because you risk overriding the default handler for a rule already defined by FlaskVel with the same name. You can find a full list of rules [here](#rules).
+!> Be carefull when choosing a name because you risk overriding the default handler for a rule already defined by FlaskVel with the same name. You can find a full list of all rules [here](rules).
 
 ```python
 # main.py
@@ -380,17 +448,17 @@ from flaskvel import Validator, Rules, ParsedRule
 
 class MyValidator(Validator):
     def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.rules = {
-      "order_number": [Rules.NUMERIC, 'divisible:2']
-    }
+      super().__init__(*args, **kwargs)
+      self.rules = {
+        "order_number": [Rules.NUMERIC, 'divisible:2']
+      }
 
-    self.messages = {
-      "order_number.divisible": "Order number must be divisible by {divisor}"
-    }
+      self.messages = {
+        "order_number.divisible": "Order number must be divisible by {divisor}"
+      }
 ```
 
-> You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](#bail) and [nullable](#nullable), their behaviour **CANNOT** be overridden.
+> You can override the `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](rules#bail) and [nullable](rules#nullable), their behaviour **CANNOT** be overridden.
 
 The function `flaskvel.Flaskvel.register_rule` has the following signature:
 
@@ -399,7 +467,29 @@ def register_rule(rule, handler, is_null_tolerant=True)
 ```
 - ***rule*** - the name of the rule to be registered
 - ***handler*** - the function implementing the rule
-- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`
+- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](rules#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`
+
+## Manual validation
+
+!> The `Validator` provided by FlaskVel should be treated as an abstract class an **NOT** be instantiated.
+
+```python
+# main.py
+
+@app.route("/validation/manual", methods=["POST"])
+def manualValidation():
+	validator = CustomValidator(request=request, body_format=BodyFormats.FORM)
+	try:
+		validator.validate()
+		return "Hello from \"not an automated\" world!"
+	except flaskvel.ValidationException as e:
+		errors = validator.get_validation_errors()
+		processor = validator.get_processor()
+		# ...
+		# code to handle the errors
+		# ...
+	return "Sorry, your sent the wrong body."
+```
 
 ## Processor
 
@@ -421,7 +511,7 @@ def get_failed_validations(self)
 def get_field_type(self, field_name)
 ```
 
-- Returns one of the following values: `flaskvel.FieldTypes.STRING`, `flaskvel.FieldTypes.NUMERIC`, `flaskvel.FieldTypes.ARRAY`, `flaskvel.FieldTypes.JSON`, `flaskvel.FieldTypes.FILE`, `flaskvel.FieldTypes.UNKOWN`. We recommend you to specify the type of every field ([string](#string), [numeric](#numeric), [array](#array), [json](#json), [file](#file)) otherwise the processor will try to guess it.
+- Returns one of the following values: `flaskvel.FieldTypes.STRING`, `flaskvel.FieldTypes.NUMERIC`, `flaskvel.FieldTypes.ARRAY`, `flaskvel.FieldTypes.JSON`, `flaskvel.FieldTypes.FILE`, `flaskvel.FieldTypes.UNKOWN`. We recommend you to specify the type of every field ([string](rules#string), [numeric](rules#numeric), [array](rules#array), [json](rules#json), [file](rules#file)) otherwise the processor will try to guess it.
 
 !> Even if you specify the type of a field, it will still be validated, if this fails then `flaskvel.FieldTypes.UNKOWN` is returned.
 
@@ -447,13 +537,13 @@ def is_field_present(self, field_name)
 def is_field_nullable(self, field_name)
 ```
 
-- Returns either `True` or `False` depending on whether or not the field is [nullable](#nullable).
+- Returns either `True` or `False` depending on whether or not the field is [nullable](rules#nullable).
 
 ```python
 def should_bail(self, field_name)
 ```
 
-- Returns either `True` or `False` depending on whether or not the field contains the [bail](#bail) rule.
+- Returns either `True` or `False` depending on whether or not the field contains the [bail](rules#bail) rule.
 
 ---
 

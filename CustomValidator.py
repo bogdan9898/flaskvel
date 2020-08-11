@@ -18,6 +18,14 @@ class CustomValidator(Validator):
 		}
 
 		# self.rules = {
+		# 	'username': "required|string",
+		# 	'title': "nullable|string",
+		# 	'description': "required_with:title|string|max:256",
+		# 	'genre': "nullable|in:thriller,fantasy,romance"
+		# }
+
+
+		# self.rules = {
 		# 	# "order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])],
 		# 	"order_number": [Rules.NUMERIC, 'divisible:2'],
 		# }
