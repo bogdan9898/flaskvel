@@ -13,7 +13,7 @@ class CustomValidator(Validator):
 			"username.string": "Type of username is invalid",
 			"password.min": "Password must be between 8 and 32",
 			"password.max": "Password must be between 8 and 32",
-			"password": "Please confirm your password",
+			"password.confirmed": "Please confirm your password",
 			"email.REQUIRED": "Email address is required"
 		}
 
