@@ -40,7 +40,7 @@ class Validator:
 		if not hasattr(self, '_processor'):
 			raise Exception("Base validator not initialized. Most probably you forgot to call super().__init__(*args, **kwargs) inside your validator class.")
 		self._validate_body_format()
-		self._parse_rules()
+		self._prep_rules()
 		result = self._processor._run()
 		if not result:
 			raise Flaskvel._exception_class(self._processor.get_errors())
@@ -62,7 +62,7 @@ class Validator:
 		else:
 			raise Flaskvel._exception_class("Invalid body format")
 
-	def _parse_rules(self):
+	def _prep_rules(self):
 		for field_name, field_rules in self.rules.items():
 			if isinstance(field_rules, list):
 				self._parsed_rules[field_name] = ArrayParser.parse(field_rules)

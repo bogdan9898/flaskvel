@@ -10,7 +10,7 @@ pip install flaskvel
 ```
 FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the search bar on the left to quickly find what you need.
 
-!> This package only works with Python 3.
+!> This package only works with Python 3+.
 
 ---
 

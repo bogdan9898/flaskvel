@@ -14,7 +14,7 @@ class CustomValidator(Validator):
 			"password.min": "Password must be between 8 and 32",
 			"password.max": "Password must be between 8 and 32",
 			"password.confirmed": "Please confirm your password",
-			"email.REQUIRED": "Email address is required"
+			"email.required": "Email address is required"
 		}
 
 		# self.rules = {
@@ -23,7 +23,6 @@ class CustomValidator(Validator):
 		# 	'description': "required_with:title|string|max:256",
 		# 	'genre': "nullable|in:thriller,fantasy,romance"
 		# }
-
 
 		# self.rules = {
 		# 	# "order_number": [Rules.NUMERIC, ParsedRule(self.is_divisible, [2])],
