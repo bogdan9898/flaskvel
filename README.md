@@ -74,3 +74,7 @@ def register():
 > The decorator `@validate` must always be positioned after `@app.route`.
 
 > You can find a list of all the rules [here](https://bogdan9898.github.io/flaskvel/#/rules).
+
+---
+
+# Jump straight to the [documentation](https://bogdan9898.github.io/flaskvel).
