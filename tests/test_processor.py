@@ -1131,37 +1131,231 @@ def test_handler_min(pass_data_min, fail_data_min):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_not_in():
+	return {
+		'rules': {
+			'field': 'not_in:x,y,z'
+		},
+		'values': {
+			'field': 1
+		}
+	}
+
+@pytest.fixture
+def fail_data_not_in():
+	return {
+		'rules': {
+			'field': 'not_in:x,y,z'
+		},
+		'values': {
+			'field': 'z'
+		}
+	}
+
 def test_handler_not_in(pass_data_not_in, fail_data_not_in):
 	generic_test(pass_data_not_in, fail_data_not_in)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_not_in_array():
+	return {
+		'rules': {
+			'field1': 'not_in_array:field2'
+		},
+		'values': {
+			'field1': 1,
+			'field2': ['x','y','z']
+		}
+	}
+
+@pytest.fixture
+def fail_data_not_in_array():
+	return [
+		{
+			'rules': {
+				'field1': 'not_in_array:field2'
+			},
+			'values': {
+				'field1': 'z',
+				'field2': ['x','y','z']
+			}
+		},
+		{
+			'rules': {
+				'field1': 'not_in_array:field2'
+			},
+			'values': {
+				'field1': 'z',
+				'field2': 999
+			}
+		},
+		{
+			'rules': {
+				'field1': 'not_in_array:field2'
+			},
+			'values': {
+				'field1': 1,
+			}
+		}
+	]
+
 def test_handler_not_in_array(pass_data_not_in_array, fail_data_not_in_array):
 	generic_test(pass_data_not_in_array, fail_data_not_in_array)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_not_regex():
+	return {
+		'rules': {
+			'field': r'not_regex:\d+'
+		},
+		'values': {
+			'field': 'abcd'
+		}
+	}
+
+@pytest.fixture
+def fail_data_not_regex():
+	return [
+		{
+			'rules': {
+				'field': r'not_regex:\d+'
+			},
+			'values': {
+				'field': '1234'
+			}
+		},
+		{
+			'rules': {
+				'field': r'not_regex:\d+'
+			},
+			'values': {
+				'field': 9999
+			}
+		}
+	]
+
 def test_handler_not_regex(pass_data_not_regex, fail_data_not_regex):
 	generic_test(pass_data_not_regex, fail_data_not_regex)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_numeric():
+	return [
+		{
+			'rules': {
+				'field': 'numeric'
+			},
+			'values': {
+				'field': '1234'
+			}
+		},
+		{
+			'rules': {
+				'field': 'numeric'
+			},
+			'values': {
+				'field': '12.34'
+			}
+		},
+		{
+			'rules': {
+				'field': 'numeric'
+			},
+			'values': {
+				'field': 1234
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_numeric():
+	return {
+		'rules': {
+			'field': 'numeric'
+		},
+		'values': {
+			'field': 'abcd'
+		}
+	}
+
 def test_handler_numeric(pass_data_numeric, fail_data_numeric):
 	generic_test(pass_data_numeric, fail_data_numeric)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_present():
+	return [
+		{
+			'rules': {
+				'field': 'present'
+			},
+			'values': {
+				'field': None
+			}
+		},
+		{
+			'rules': {
+				'field': 'present'
+			},
+			'values': {
+				'field': 'abcd'
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_present():
+	return {
+		'rules': {
+			'field': 'present'
+		},
+		'values': {
+		}
+	}
+
 def test_handler_present(pass_data_present, fail_data_present):
 	generic_test(pass_data_present, fail_data_present)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_regex():
+	return {
+		'rules': {
+			'field': r'regex:\d+'
+		},
+		'values': {
+			'field': '1234'
+		}
+	}
+
+@pytest.fixture
+def fail_data_regex():
+	return [
+		{
+			'rules': {
+				'field': r'regex:\d+'
+			},
+			'values': {
+				'field': 'abcd'
+			}
+		},
+		{
+			'rules': {
+				'field': r'regex:\d+'
+			},
+			'values': {
+				'field': 9999
+			}
+		}
+	]
+
 def test_handler_regex(pass_data_regex, fail_data_regex):
 	generic_test(pass_data_regex, fail_data_regex)
 
