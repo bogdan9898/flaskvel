@@ -12,7 +12,7 @@ To install FlaskVel run:
 ```
 pip install flaskvel
 ```
-FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the search bar on the left to quickly find what you need.
+FlaskVel is now installed, check out the [Quickstart](#quickstart).
 
 > This package is only compatible with Python 3+.
 
