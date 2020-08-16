@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+long_description = None
 with open("README.md", "r") as file:
     long_description = file.read()
 
@@ -14,8 +15,8 @@ setup(
 	author = 'Bogdan Istoc',                   # Type in your name
 	author_email = 'bogdan.istoc98@gmail.com',      # Type in your E-Mail
 	url = 'https://github.com/bogdan9898/flaskvel',   # Provide either the link to your github or to your website
-	download_url = 'https://github.com/bogdan9898/flaskvel/archive/v0.7.1-alpha.tar.gz',    # I explain this later on
-	keywords = ['flask', 'http', 'validator', 'request validator'],   # Keywords that define your package best
+	download_url = 'https://github.com/bogdan9898/flaskvel/archive/v0.7.2-alpha.tar.gz',    # I explain this later on
+	keywords = ['flask', 'http', 'validator', 'request validator', 'http validator'],   # Keywords that define your package best
 	install_requires=[            # I get to this in a second
 		'flask',
 		'python-dateutil',

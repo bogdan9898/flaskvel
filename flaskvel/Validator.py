@@ -4,13 +4,12 @@ from flask import request
 
 from .Flaskvel import Flaskvel
 from .Constants.BodyFormat import BodyFormats
-from .Parsers.ArrayParser import ArrayParser
-from .Parsers.PipedStringParser import PipedStringParser
+from .Parsers.UniversalParser import UniversalParser
 from .Processor import Processor
 from .ParsedRule import ParsedRule
 from .Exceptions.ValidationException import ValidationException
 
-class Validator:
+class Validator():
 	def __init__(self, request, body_format=BodyFormats.ANY):
 		self._request = request
 		self._body_format = body_format
@@ -40,7 +39,7 @@ class Validator:
 		if not hasattr(self, '_processor'):
 			raise Exception("Base validator not initialized. Most probably you forgot to call super().__init__(*args, **kwargs) inside your validator class.")
 		self._validate_body_format()
-		self._prep_rules()
+		self._parsed_rules = UniversalParser.parse(self.rules)
 		result = self._processor._run()
 		if not result:
 			raise Flaskvel._exception_class(self._processor.get_errors())
@@ -61,19 +60,6 @@ class Validator:
 			return True
 		else:
 			raise Flaskvel._exception_class("Invalid body format")
-
-	def _prep_rules(self):
-		for field_name, field_rules in self.rules.items():
-			if isinstance(field_rules, list):
-				self._parsed_rules[field_name] = ArrayParser.parse(field_rules)
-			elif isinstance(field_rules, str):
-				self._parsed_rules[field_name] = PipedStringParser.parse(field_rules)
-			elif isinstance(field_rules, ParsedRule):
-				self._parsed_rules[field_name] = [field_rules]
-			elif callable(field_rules):
-				self._parsed_rules[field_name] = [ParsedRule(field_rules)]
-			else:
-				raise Exception("Invalid rules; Expected list/str/callable but got {2} for: <{0}: {1}>".format(field_name, field_rules, type(field_rules)))
 
 # methods: {"GET", "POST", "PUT", "DELETE"....}
 # methods=PipedString or Array or '*'

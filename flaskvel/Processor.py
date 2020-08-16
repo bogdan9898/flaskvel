@@ -358,7 +358,7 @@ class Processor():
 	def handler_alpha(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
-		pattern = re.compile("^[a-z\s]*$", re.IGNORECASE)
+		pattern = re.compile(r"^[a-z\s]*$", re.IGNORECASE)
 		try:
 			return pattern.match(value) is not None
 		except:
@@ -367,7 +367,7 @@ class Processor():
 	def handler_alpha_dash(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
-		pattern = re.compile("^[a-z\-_\s]*$", re.IGNORECASE)
+		pattern = re.compile(r"^[a-z\-_\s]*$", re.IGNORECASE)
 		try:
 			return pattern.match(value) is not None
 		except:
@@ -376,7 +376,7 @@ class Processor():
 	def handler_alpha_num(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
-		pattern = re.compile("^[a-z0-9\s]*$", re.IGNORECASE)
+		pattern = re.compile(r"^[a-z0-9\s]*$", re.IGNORECASE)
 		try:
 			return pattern.match(value) is not None
 		except:
@@ -389,7 +389,8 @@ class Processor():
 			return True
 		if isinstance(value, str):
 			try:
-				return isinstance(ast.literal_eval(value), list)
+				x = ast.literal_eval(value)
+				return isinstance(x, list)
 			except:
 				return False
 		return False
@@ -424,7 +425,7 @@ class Processor():
 			err_msg_params['field_name'] = field_name
 		if isinstance(value, bool):
 			return True
-		return value in [1, 0, '1', '0', True, False]
+		return value in [1, 0, '1', '0', True, False, 'true', 'false',]
 
 	def handler_confirmed(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
@@ -435,7 +436,7 @@ class Processor():
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
 		try:
-			return parse_date(value)
+			return parse_date(value) is not None
 		except:
 			return False
 
@@ -506,13 +507,13 @@ class Processor():
 
 		valid_params = []
 		patterns = [
-			"(min_width)=(\d+)",
-			"(max_width)=(\d+)",
-			"(min_height)=(\d+)",
-			"(max_height)=(\d+)",
-			"(width)=(\d+)",
-			"(height)=(\d+)",
-			"(ratio)=(\d+)/(\d+)"]
+			r"(min_width)=(\d+)",
+			r"(max_width)=(\d+)",
+			r"(min_height)=(\d+)",
+			r"(max_height)=(\d+)",
+			r"(width)=(\d+)",
+			r"(height)=(\d+)",
+			r"(ratio)=(\d+)/(\d+)"]
 		dim_rules = {}
 		for pattern in patterns:
 			for param in params:

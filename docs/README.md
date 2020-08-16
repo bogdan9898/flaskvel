@@ -10,7 +10,7 @@ pip install flaskvel
 ```
 FlaskVel is now installed. Check out the [Quickstart](#quickstart) or use the search bar on the left to quickly find what you need.
 
-!> This package only works with Python 3+.
+!> This package is only compatible with Python 3+.
 
 ---
 
@@ -229,7 +229,7 @@ In the next example we'll [register a new rule](#_2-registered-rules) named `my_
 def my_handler(err_msg_params, **kwargs): # go to [1. Unregstered rules] to read about all the arguments that a handler functions can have
   # you can use err_msg_params to pass information to the final error message
   err_msg_params['random_words_list'] = ["agreement", "force", "fluttering", "treat", "jam"]
-  err_msg_params['useful_link'] = "https://youtu.be/dQw4w9WgXcQ"
+  err_msg_params['quickstart_demo'] = "https://youtu.be/dQw4w9WgXcQ"
   err_msg_params['field_name'] = field_name
   result = False
   # ...
@@ -255,17 +255,17 @@ class MyValidator(Validator):
       }
 
       self.messages = {
-        "test_field.my_custom_rule": "My name is {field_name}, these are my parameters: {0}, {1}, {2}, here is a useful link: {useful_link} and a list of random words: {random_words_list}."
+        "test_field.my_custom_rule": "My name is {field_name}, these are my parameters: {0}, {1}, {2}, here is a demo: {quickstart_demo} and a list of random words: {random_words_list}."
       }
 ```
 
-If out validation fails, we should get a response like this:
+If our validation fails, we should get a response like this:
 
 ```json
 {
   "errors": {
     "test_field": [
-      "My name is test_field, these are my parameters: param1, param2, param3, here is a useful link: https://youtu.be/dQw4w9WgXcQ and a list of random words: ['agreement', 'force', 'fluttering', 'treat', 'jam']."
+      "My name is test_field, these are my parameters: param1, param2, param3, here is a demo: https://youtu.be/dQw4w9WgXcQ and a list of random words: ['agreement', 'force', 'fluttering', 'treat', 'jam']."
     ]
   },
   "status": "Validation failure"
