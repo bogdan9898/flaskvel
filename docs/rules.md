@@ -157,8 +157,8 @@
 ## not_regex:*pattern*
 - The field under validation must not match the given regular expression.
 
-- **Note**: When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
-  
+!> When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
+
 ## nullable
 - The field under validation may be `None`. This is particularly useful when validating primitive such as strings and integers that can contain `None` values.
 
@@ -171,7 +171,7 @@
 ## regex:*pattern*
 - The field under validation must match the given regular expression.
 
-- **Note**: When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
+!> When using the `regex` / `not_regex` patterns, it may be necessary to specify rules in an array instead of using pipe delimiters, especially if the regular expression contains a pipe character.
 
 ## required
 - The field under validation must be present in the input data and not empty. A field is considered "empty" if one of the following conditions are true:
