@@ -1,13 +1,13 @@
-<center> <h1>FlaskVel</h1> </center>
+# FlaskVel
 
-# Introduction
+## Introduction
 A small package that provides a convenient method to validate incoming HTTP requests with a variety of powerful validation rules, highly customizable and heavily influenced by Laravel.
 
-> Jump straight to the [documentation](https://bogdan9898.github.io/flaskvel).
+#### Jump straight to the [documentation](https://bogdan9898.github.io/flaskvel).
 
 ---
 
-# Instalation
+## Instalation
 To install FlaskVel run:
 ```
 pip install flaskvel
@@ -18,7 +18,7 @@ FlaskVel is now installed, check out the [Quickstart](#quickstart).
 
 ---
 
-# Quickstart
+## Quickstart
 Lets suppose we want an endpoint that is used to register a user. First of all, we have to instantiate Flask and to also [initialize FlaskVel](https://bogdan9898.github.io/flaskvel/#/?id=initialization) by calling it's constructor with the appropriate parameters.
 
 ```python
@@ -77,4 +77,4 @@ def register():
 
 ---
 
-# Jump straight to the [documentation](https://bogdan9898.github.io/flaskvel).
+#### Jump straight to the [documentation](https://bogdan9898.github.io/flaskvel).
