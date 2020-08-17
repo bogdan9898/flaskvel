@@ -470,11 +470,19 @@ def register_rule(rule, handler, is_null_tolerant=True)
 - ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](rules#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`
 
 ## Manual validation
+If you want to validate the data at a specific point during the HTTP request, you can execute the validation manually. To do so, remove [the decorator](#the-decorator), initialize your own validator class and call `validator.validate()`. Don't forget to wrap this call in a `Try Except` block.
 
-!> The `Validator` provided by FlaskVel should be treated as an abstract class an **NOT** be instantiated.
+!> The `Validator` provided by FlaskVel should be treated as an abstract class and **NOT** be instantiated.
 
 ```python
 # main.py
+from flask import Flask, jsonify, request
+from flaskvel import Flaskvel, BodyFormats, ValidationException
+
+from CustomValidator import CustomValidator # write your own validator in CustomValidator.py
+
+app = Flask(__name__)
+Flaskvel(app)
 
 @app.route("/validation/manual", methods=["POST"])
 def manualValidation():
@@ -482,7 +490,7 @@ def manualValidation():
 	try:
 		validator.validate()
 		return "Hello from \"not an automated\" world!"
-	except flaskvel.ValidationException as e:
+	except ValidationException as e:
 		errors = validator.get_validation_errors()
 		processor = validator.get_processor()
 		# ...

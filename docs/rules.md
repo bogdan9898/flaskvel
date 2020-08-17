@@ -188,13 +188,13 @@
 - The field under validation must be present and not empty *unless* the *another_field* field is equal to any *value*.
 
 ## required_with:*foo,bar,...*
-- The field under validation must be present and not empty *only if any* of the other specified fields are present.
+- The field under validation must be present and not empty *only if any* of the other specified fields is present.
 
 ## required_with_all:*foo,bar,...*
-- The field under validation must be present and not empty *only when any* of the other specified fields are not present.
+- The field under validation must be present and not empty *only when all* of the other specified fields are present.
 
 ## required_without:*foo,bar,...*
-- The field under validation must be present and not empty *only when all* of the other specified fields are not present.
+- The field under validation must be present and not empty *only when any* of the other specified fields is not present.
 
 ## required_without_all:*foo,bar,...*
 - The field under validation must be present and not empty *only when all* of the other specified fields are not present.
@@ -207,15 +207,15 @@
 
 ```python
 # Validate that a string is exactly 12 characters long...
-'title': 'size:12'
+'title': 'string|size:12'
 
-# Validate that a provided integer equals 10...
+# Validate that an integer equals 10...
 'seats': 'integer|size:10'
 
 # Validate that an array has exactly 5 elements...
 'tags': 'array|size:5'
 
-# Validte that a json has exaclty 2 keys...
+# Validate that a json has exaclty 2 keys...
 'login_credentials': 'json|size:2'
 
 # Validate that an uploaded file is exactly 512 kilobytes...
