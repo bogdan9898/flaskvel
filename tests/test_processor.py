@@ -7,24 +7,44 @@ from flaskvel import Validator
 from flaskvel.Parsers.UniversalParser import UniversalParser
 
 mockup_files = {
+	'0kb': FileStorage(
+		stream=open('tests/files/file_0kb', 'rb'),
+		filename='tests/files/file_0kb',
+		content_type='text/plain',
+		name='field'
+	),
 	'1kb': FileStorage(
-		stream=open('files/file_1kb'),
-		filename='files/file_1kb',
+		stream=open('tests/files/file_1kb', 'rb'),
+		filename='tests/files/file_1kb',
 		content_type='text/plain',
 		name='field'
 	),
 	'2kb': FileStorage(
-		stream=open('files/file_2kb'),
-		filename='files/file_2kb',
+		stream=open('tests/files/file_2kb', 'rb'),
+		filename='tests/files/file_2kb',
 		content_type='text/plain',
 		name='field'
 	),
 	'3kb': FileStorage(
-		stream=open('files/file_2kb'),
-		filename='files/file_2kb',
+		stream=open('tests/files/file_3kb', 'rb'),
+		filename='tests/files/file_3kb',
 		content_type='text/plain',
 		name='field'
 	),
+	'4kb': FileStorage(
+		stream=open('tests/files/file_4kb', 'rb'),
+		filename='tests/files/file_4kb',
+		content_type='text/plain',
+		name='field'
+	),
+	
+	'alphabet': FileStorage(
+		stream=open('tests/files/file_alphabet', 'rb'),
+		filename='tests/files/file_alphabet',
+		content_type='text/plain',
+		name='field'
+	),
+
 }
 
 class RequestMockup:
@@ -415,7 +435,216 @@ def test_handler_before_or_equal(pass_data_before_or_equal, fail_data_before_or_
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_between():
+	return [
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 'a'
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 'ab'
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 'abc'
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 1
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 2
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 3
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': [0]
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': [0, 1, 2]
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': {"a":0}
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': {"a":0, "b":1, "c":2}
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': mockup_files['1kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': mockup_files['3kb']
+			}
+		},
+	]
+
+@pytest.fixture
+def fail_data_between():
+	return [
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': ''
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 'abcd'
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 0
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': 4
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': []
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': [0, 1, 2, 3]
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': {}
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': {"a":0, "b":1, "c":2, "d":3}
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': mockup_files['0kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'between:1,3'
+			},
+			'values': {
+				'field': mockup_files['4kb']
+			}
+		},
+	]
+
 def test_handler_between(pass_data_between, fail_data_between):
 	generic_test(pass_data_between, fail_data_between)
 
@@ -735,7 +964,6 @@ def test_handler_dimensions(pass_data_dimensions, fail_data_dimensions):
 
 # ==================================================================================================== #
 
-
 @pytest.fixture
 def pass_data_distinct():
 	return [
@@ -800,13 +1028,150 @@ def test_handler_email(pass_data_email, fail_data_email):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_ends_with():
+	return [
+		{
+			'rules': {
+				'field': 'ends_with:z'
+			},
+			'values': {
+				'field': 'wxyz'
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:9'
+			},
+			'values': {
+				'field': 6789
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:c'
+			},
+			'values': {
+				'field': ['a', 'b', 'c']
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:xyz'
+			},
+			'values': {
+				'field': mockup_files['alphabet']
+			}
+		},
+	]
+
+@pytest.fixture
+def fail_data_ends_with():
+	return [
+		{
+			'rules': {
+				'field': 'ends_with:a'
+			},
+			'values': {
+				'field': 'bcd'
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:1'
+			},
+			'values': {
+				'field': 999
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:a'
+			},
+			'values': {
+				'field': ['b', 'c']
+			}
+		},
+		{
+			'rules': {
+				'field': 'ends_with:a'
+			},
+			'values': {
+				'field': mockup_files['alphabet']
+			}
+		},
+	]
+
 def test_handler_ends_with(pass_data_ends_with, fail_data_ends_with):
 	generic_test(pass_data_ends_with, fail_data_ends_with)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_file():
+	return [
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': mockup_files['0kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_file():
+	return [
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': 'abcd'
+			}
+		},
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': 1234
+			}
+		},
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'file'
+			},
+			'values': {
+			}
+		}
+	]
+
 def test_handler_file(pass_data_file, fail_data_file):
 	generic_test(pass_data_file, fail_data_file)
 
@@ -848,17 +1213,378 @@ def test_handler_filled(pass_data_filled, fail_data_filled):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_gt():
+	return [
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 'abc',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 3,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': [0, 1, 2],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1, "c":2},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': mockup_files['3kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+	]
+
+@pytest.fixture
+def fail_data_gt():
+	return [
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': "abcd",
+				'field2': 1234
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 'a',
+				'field2': 'de',
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 'ab',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 1,
+				'field2': 2,
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': 2,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': [0],
+				'field2': [0, 1],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': [0, 1],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': {"a":0},
+				'field2': {"a":0, "b":1},
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': mockup_files['1kb'],
+				'field2': mockup_files['2kb'],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gt:field2'
+			},
+			'values': {
+				'field1': mockup_files['2kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+	]
+
 def test_handler_gt(pass_data_gt, fail_data_gt):
 	generic_test(pass_data_gt, fail_data_gt)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_gte():
+	return [
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 'ab',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 'abc',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 2,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 3,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': [0, 1],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': [0, 1, 2],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1, "c":2},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': mockup_files['2kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': mockup_files['3kb'],
+				'field2': mockup_files['2kb']
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_gte():
+	return [
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': "abcd",
+				'field2': 1234
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 'a',
+				'field2': 'de',
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': 1,
+				'field2': 2,
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': [0],
+				'field2': [0, 1],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': {"a":0},
+				'field2': {"a":0, "b":1},
+			}
+		},
+		{
+			'rules': {
+				'field1': 'gte:field2'
+			},
+			'values': {
+				'field1': mockup_files['1kb'],
+				'field2': mockup_files['2kb'],
+			}
+		}
+	]
+
 def test_handler_gte(pass_data_gte, fail_data_gte):
 	generic_test(pass_data_gte, fail_data_gte)
 
 # ==================================================================================================== #
+
+# @pytest.fixture
+# def pass_data_image():
+# 	return {
+# 		'rules': {
+# 			'field': 'image'
+# 		},
+# 		'values': {
+# 			'field': mockup_files[]
+# 		}
+# 	}
+
+# @pytest.fixture
+# def fail_data_image():
+# 	return [
+# 		{
+# 			'rules': {
+# 				'field': 'image'
+# 			},
+# 			'values': {
+# 				'field': 1234
+# 			}
+# 		},
+# 		{
+# 			'rules': {
+# 				'field': 'image'
+# 			},
+# 			'values': {
+# 				'field': mockup_files['2kb']
+# 			}
+# 		},
+# 		{
+# 			'rules': {
+# 				'field': 'image'
+# 			},
+# 			'values': {
+# 				'field': mockup_files['0kb']
+# 			}
+# 		},
+# 		{
+# 			'rules': {
+# 				'field': 'image'
+# 			},
+# 			'values': {
+# 				'field': None
+# 			}
+# 		},
+# 		{
+# 			'rules': {
+# 				'field': 'image'
+# 			},
+# 			'values': {
+# 			}
+# 		}
+# 	]
 
 @pytest.mark.skip(reason="not implemented")
 def test_handler_image(pass_data_image, fail_data_image):
@@ -1138,19 +1864,454 @@ def test_handler_json(pass_data_json, fail_data_json):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_lt():
+	return [
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 'a',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 1,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': [0],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': {"a":0},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': mockup_files['1kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+	]
+
+@pytest.fixture
+def fail_data_lt():
+	return [
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': "abcd",
+				'field2': 1234
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 'abc',
+				'field2': 'de',
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 'ab',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 3,
+				'field2': 2,
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': 2,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': [0, 1, 2],
+				'field2': [0, 1],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': [0, 1],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1, "c":2},
+				'field2': {"a":0, "b":1},
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': mockup_files['3kb'],
+				'field2': mockup_files['2kb'],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lt:field2'
+			},
+			'values': {
+				'field1': mockup_files['2kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+	]
+
 def test_handler_lt(pass_data_lt, fail_data_lt):
 	generic_test(pass_data_lt, fail_data_lt)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_lte():
+	return [
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 'a',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 'ab',
+				'field2': 'de'
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 1,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 2,
+				'field2': 2
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': [0],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': [0, 1],
+				'field2': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': {"a":0},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1},
+				'field2': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': mockup_files['1kb'],
+				'field2': mockup_files['2kb']
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': mockup_files['2kb'],
+				'field2': mockup_files['2kb']
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_lte():
+	return [
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': "abcd",
+				'field2': 1234
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 'abc',
+				'field2': 'de',
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': 3,
+				'field2': 2,
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': [0, 1, 2],
+				'field2': [0, 1],
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': {"a":0, "b":1, "c":2},
+				'field2': {"a":0, "b":1},
+			}
+		},
+		{
+			'rules': {
+				'field1': 'lte:field2'
+			},
+			'values': {
+				'field1': mockup_files['3kb'],
+				'field2': mockup_files['2kb'],
+			}
+		}
+	]
+
 def test_handler_lte(pass_data_lte, fail_data_lte):
 	generic_test(pass_data_lte, fail_data_lte)
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_max():
+	return [
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': 'ab'
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': ''
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': 2
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': 0
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': []
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': {}
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:2'
+			},
+			'values': {
+				'field': mockup_files['0kb']
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_max():
+	return [
+		{
+			'rules': {
+				'field': 'max:0'
+			},
+			'values': {
+				'field': 'ab'
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:0'
+			},
+			'values': {
+				'field': 2
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:0'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:0'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'max:0'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		}
+	]
+
 def test_handler_max(pass_data_max, fail_data_max):
 	generic_test(pass_data_max, fail_data_max)
 
@@ -1162,7 +2323,136 @@ def test_handler_mimetypes(pass_data_mimetypes, fail_data_mimetypes):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_min():
+	return [
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': 'ab'
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': 'abc'
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': 2
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': 3
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': [0, 1, 2]
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': {"a":0, "b":1, "c":2}
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:2'
+			},
+			'values': {
+				'field': mockup_files['3kb']
+			}
+		}
+	]
+
+@pytest.fixture
+def fail_data_min():
+	return [
+		{
+			'rules': {
+				'field': 'min:9999'
+			},
+			'values': {
+				'field': 'ab'
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:9999'
+			},
+			'values': {
+				'field': 2
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:9999'
+			},
+			'values': {
+				'field': [0, 1]
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:9999'
+			},
+			'values': {
+				'field': {"a":0, "b":1}
+			}
+		},
+		{
+			'rules': {
+				'field': 'min:9999'
+			},
+			'values': {
+				'field': mockup_files['2kb']
+			}
+		}
+	]
+
 def test_handler_min(pass_data_min, fail_data_min):
 	generic_test(pass_data_min, fail_data_min)
 
@@ -1424,7 +2714,39 @@ def fail_data_required():
 				'field': 'required'
 			},
 			'values': {
+				'field': ""
+			}
+		},
+		{
+			'rules': {
+				'field': 'required'
+			},
+			'values': {
+				'field': []
+			}
+		},
+		{
+			'rules': {
+				'field': 'required'
+			},
+			'values': {
+				'field': {}
+			}
+		},
+		{
+			'rules': {
+				'field': 'required'
+			},
+			'values': {
 				'field': None
+			}
+		},
+		{
+			'rules': {
+				'field': 'required'
+			},
+			'values': {
+				'field': mockup_files['0kb']
 			}
 		}
 	]
@@ -1876,7 +3198,80 @@ def test_handler_size(pass_data_size, fail_data_size):
 
 # ==================================================================================================== #
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.fixture
+def pass_data_starts_with():
+	return [
+		{
+			'rules': {
+				'field': 'starts_with:a'
+			},
+			'values': {
+				'field': 'abcd'
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:1'
+			},
+			'values': {
+				'field': 1234
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:a'
+			},
+			'values': {
+				'field': ['a', 'b', 'c']
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:abc'
+			},
+			'values': {
+				'field': mockup_files['alphabet']
+			}
+		},
+	]
+
+@pytest.fixture
+def fail_data_starts_with():
+	return [
+		{
+			'rules': {
+				'field': 'starts_with:a'
+			},
+			'values': {
+				'field': 'bcd'
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:1'
+			},
+			'values': {
+				'field': 999
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:a'
+			},
+			'values': {
+				'field': ['b', 'c']
+			}
+		},
+		{
+			'rules': {
+				'field': 'starts_with:z'
+			},
+			'values': {
+				'field': mockup_files['alphabet']
+			}
+		},
+	]
+
 def test_handler_starts_with(pass_data_starts_with, fail_data_starts_with):
 	generic_test(pass_data_starts_with, fail_data_starts_with)
 

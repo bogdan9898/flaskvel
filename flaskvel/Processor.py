@@ -78,7 +78,7 @@ class Processor():
 		return validation_passed
 
 	def get_field_type(self, field_name):
-		rules = self._parsed_rules[field_name]
+		rules = self._parsed_rules.get(field_name, [])
 		value = self.get_field_value(field_name)
 
 		for rule in [
@@ -164,7 +164,7 @@ class Processor():
 			if not isinstance(result, dict):
 				return None
 			result = result.get(key)
-			if not result:
+			if result is None:
 				return None
 			try:
 				if isinstance(result, str): # parse json strings within forms
@@ -205,6 +205,25 @@ class Processor():
 			if rule in rules:
 				return True
 		return False
+
+	def is_field_empty(self, field_name):
+		value = self.get_field_value(field_name)
+		field_type = self.get_field_type(field_name)
+
+		if field_type == FieldTypes.STRING:
+			return value == ''
+		# elif field_type == FieldTypes.NUMERIC:
+		# 	return value is None
+		elif field_type == FieldTypes.ARRAY:
+			return len(value) == 0
+		elif field_type == FieldTypes.JSON:
+			return len(value) == 0
+		elif field_type == FieldTypes.FILE:
+			value.seek(0, os.SEEK_END)
+			file_size = value.tell()
+			value.seek(0, os.SEEK_SET)
+			return file_size == 0
+		return value is None
 
 	def should_bail(self, field_name):
 		return RulesPredicates.BAIL in self._parsed_rules[field_name]
@@ -417,8 +436,8 @@ class Processor():
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
 		self._assert_params_types(params, [int, int], RulesPredicates.BETWEEN)
-		return (self._compare_single_field_size(field_name, params[0], operator.gt) and
-				self._compare_single_field_size(field_name, params[1], operator.lt))
+		return (self._compare_single_field_size(field_name, params[0], operator.ge) and
+				self._compare_single_field_size(field_name, params[1], operator.le))
 
 	def handler_boolean(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
@@ -828,7 +847,7 @@ class Processor():
 	def handler_required(self, field_name, value, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['field_name'] = field_name
-		return value != None
+		return not self.is_field_empty(field_name)
 
 	def handler_required_if(self, field_name, value, params, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
@@ -840,7 +859,7 @@ class Processor():
 		# 	return True
 		# else:
 		# 	return value is not None
-		return not other_value in params[1:] or value is not None
+		return not other_value in params[1:] or not self.is_field_empty(field_name)
 
 	def handler_required_unless(self, field_name, value, params, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
@@ -852,15 +871,15 @@ class Processor():
 		# 	return True
 		# else:
 		# 	return value is not None
-		return other_value in params[1:] or value is not None
+		return other_value in params[1:] or not self.is_field_empty(field_name)
 
 	def handler_required_with(self, field_name, value, params, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['all_params'] = params
 			err_msg_params['field_name'] = field_name
 		for field in params:
-			if self.get_field_value(field) is not None:
-				return value is not None
+			if not self.is_field_empty(field):
+				return not self.is_field_empty(field_name)
 		return True
 
 	def handler_required_with_all(self, field_name, value, params, err_msg_params=None, **kwargs):
@@ -868,17 +887,17 @@ class Processor():
 			err_msg_params['all_params'] = params
 			err_msg_params['field_name'] = field_name
 		for field in params:
-			if self.get_field_value(field) is None:
+			if self.is_field_empty(field):
 				return True
-		return value is not None
+		return not self.is_field_empty(field_name)
 
 	def handler_required_without(self, field_name, value, params, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:
 			err_msg_params['all_params'] = params
 			err_msg_params['field_name'] = field_name
 		for field in params:
-			if self.get_field_value(field) is None:
-				return value is not None
+			if self.is_field_empty(field):
+				return not self.is_field_empty(field_name)
 		return True
 
 	def handler_required_without_all(self, field_name, value, params, err_msg_params=None, **kwargs):
@@ -886,9 +905,9 @@ class Processor():
 			err_msg_params['all_params'] = params
 			err_msg_params['field_name'] = field_name
 		for field in params:
-			if self.get_field_value(field) is not None:
+			if not self.is_field_empty(field):
 				return True
-		return value is not None
+		return not self.is_field_empty(field_name)
 
 	def handler_same(self, field_name, value, params, err_msg_params=None, **kwargs):
 		if err_msg_params is not None:

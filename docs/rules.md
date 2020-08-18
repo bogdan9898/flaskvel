@@ -180,24 +180,25 @@
     - The value is an empty string.
     - The value is an empty array.
     - The value is an empty json.
+    - The value is an empty file.
 
 ## required_if:*another_field,value1,value2,...*
-- The field under validation must be present and not empty *if* the *another_field* field is equal to any *value*.
+- The field under validation must be present and not [empty](#required) *if* the *another_field* field is equal to any *value*. 
 
 ## required_unless:*another_field,value1,value2,...*
-- The field under validation must be present and not empty *unless* the *another_field* field is equal to any *value*.
+- The field under validation must be present and not [empty](#required) *unless* the *another_field* field is equal to any *value*.
 
 ## required_with:*foo,bar,...*
-- The field under validation must be present and not empty *only if any* of the other specified fields is present.
+- The field under validation must be present and not [empty](#required) *only if any* of the other specified fields is present.
 
 ## required_with_all:*foo,bar,...*
-- The field under validation must be present and not empty *only when all* of the other specified fields are present.
+- The field under validation must be present and not [empty](#required) *only when all* of the other specified fields are present.
 
 ## required_without:*foo,bar,...*
-- The field under validation must be present and not empty *only when any* of the other specified fields is not present.
+- The field under validation must be present and not [empty](#required) *only when any* of the other specified fields is not present.
 
 ## required_without_all:*foo,bar,...*
-- The field under validation must be present and not empty *only when all* of the other specified fields are not present.
+- The field under validation must be present and not [empty](#required) *only when all* of the other specified fields are not present.
 
 ## same:*foo,bar,..*
 - All of the given *fields* must match the field under validation.
