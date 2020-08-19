@@ -75,9 +75,9 @@
 'avatar': 'dimensions:min_width=100,min_height=200'
 ```
 
-- Available constraints are: *min_width, max_width, min_height, max_height, width, height, ratio*.
+- Available constraints: `min_width, max_width, min_height, max_height, width, height, ratio`.
 
-- A ratio constraint should be represented as width divided by height. This can be specified either by a statement like 3/2:
+- A `ratio` constraint should be represented as width divided by height. This can be specified by a statement like `3/2`:
 
 ```python
 'avatar': 'dimensions:ratio=3/2'

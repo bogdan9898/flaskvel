@@ -176,7 +176,7 @@ class Processor():
 		return result
 
 	def get_field_rules(self, field_name):
-		return self._parsed_rules[field_name]
+		return self._parsed_rules.get(field_name, [])
 
 	def is_field_present(self, field_name):
 		if field_name in self._request.files:
@@ -191,7 +191,7 @@ class Processor():
 		return True
 
 	def is_field_nullable(self, field_name):
-		rules = self._parsed_rules[field_name]
+		rules = self.get_field_rules(field_name)
 		imply_nullable = [
 			RulesPredicates.NULLABLE,
 			RulesPredicates.REQUIRED_IF,
