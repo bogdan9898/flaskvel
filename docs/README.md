@@ -429,7 +429,16 @@ class MyValidator(Validator):
 Registered rules are rules that can be used with the [default rules syntax](#rules-syntax), just like the ones provided by FlaskVel. The `handlers` for this type of rules must satisfy exactly the same condition as the ones for [Unregistered rules](#1-unregistered-rules)
 Although this proccess requires a bit of setup, it is recomended when you want to pass params to an unregistered rule more than one time.
 
-Let's take the example above and register a new rule named `divisible`.
+The function `flaskvel.Flaskvel.register_rule` has the following signature:
+
+```python
+def register_rule(rule, handler, is_null_tolerant=True)
+```
+- ***rule*** - the name of the rule to be registered as a string
+- ***handler*** - the function implementing the rule
+- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](rules#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`. All of the default rules are null tolerant except for: [required](rules#required), [required_if](rules#required_ifanother_fieldvalue1value2), [required_unless](rules#required_unlessanother_fieldvalue1value2), [required_with](rules#required_withfoobar), [required_with_all](rules#required_with_allfoobar), [required_without](rules#required_withoutfoobar), [required_without_all](rules#required_without_allfoobar), [present](rules#present), [filled](rules#filled).
+
+Let's take the example above and register a new rule named `divisible`:
 
 !> Be carefull when choosing a name because you risk overriding the default behavior of a rule already defined by FlaskVel with the same name. You can find a full list of all rules [here](rules).
 
@@ -440,7 +449,7 @@ def is_divisible(value, params, err_msg_params, **kwargs):
     err_msg_params['divisor'] = params[0]
     return int(value) % int(params[0]) == 0
 
-Flaskvel.register_rule('divisible', is_divisible) # the function used to register our rule
+Flaskvel.register_rule('divisible', is_divisible)
 ```
 
 And just like that our new rule is registered. Now let's get some use out of it:
@@ -463,15 +472,6 @@ class MyValidator(Validator):
 ```
 
 > You can override the default `handler` of a rule provided by FlaskVel by registering one with the same name and your own `handler` instead, except for [bail](rules#bail) and [nullable](rules#nullable), their behaviour **CANNOT** be overridden.
-
-The function `flaskvel.Flaskvel.register_rule` has the following signature:
-
-```python
-def register_rule(rule, handler, is_null_tolerant=True)
-```
-- ***rule*** - the name of the rule to be registered as a string
-- ***handler*** - the function implementing the rule
-- ***is_null_tolerant*** - whether or not the rule is null tolerant. If the rule is null tolerant and the field is specified as being [nullable](rules#nullable) and it's value is `None` then the `handler` for this rule is ignored. If you want your rule to be verified no matter what than this parameter should be `False`. All of the default rules are null tolerant except for: [required](rules#required), [required_if](rules#required_ifanother_fieldvalue1value2), [required_unless](rules#required_unlessanother_fieldvalue1value2), [required_with](rules#required_withfoobar), [required_with_all](rules#required_with_allfoobar), [required_without](rules#required_withoutfoobar), [required_without_all](rules#required_without_allfoobar), [present](rules#present), [filled](rules#filled).
 
 ---
 
