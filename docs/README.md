@@ -374,7 +374,7 @@ The easiest way to expand FlaskVel's functionality is to write your own `handler
   - `field_name` - the name of the field being validated
   - `params` - a list of all the parameters of the rule
   - `nullable` - is `True` if the field has been specified as [nullable](rules#nullable), `False` otherwise
-  - `err_msg_params` - a `dict` object where you can insert data for [dynamic validation messages](#2-dynamic-messages)
+  - `err_msg_params` - a `dict` object where you can insert data for [dynamic validation messages](#_2-dynamic-messages)
   - `processor` - an instance of the [Processor](#processor) class that called the `handler`; used to get information about other fields
   - `rules` - a list of all the rules of the field being validated
 
