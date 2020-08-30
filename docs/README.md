@@ -218,6 +218,7 @@ class CustomValidator(Validator):
 ### 2. Dynamic messages
 
 - These messages are parameterized strings that are formated after all rules are validated by the [processor](#processor). In the next example we'll [register a new rule](#_2-registered-rules) named `my_custom_rule` just for demonstration purposes:
+
 ```python
 # main.py
 
