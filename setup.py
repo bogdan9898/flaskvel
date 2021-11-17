@@ -7,7 +7,7 @@ with open("README.md", "r") as file:
 setup(
 	name = 'flaskvel',
 	packages = find_packages(),
-	version = '1.0',
+	version = '2.0',
 	license='MIT',
 	description = 'A small package for validating incoming HTTP requests',
 	long_description=long_description,
@@ -25,7 +25,7 @@ setup(
 		'Pillow',
 	],
 	classifiers=[
-		'Development Status :: 3 - Alpha', # 3 - Alpha, 4 - Beta or 5 - Production/Stable
+		'Development Status :: 5 - Production/Stable', # 3 - Alpha, 4 - Beta or 5 - Production/Stable
 		'Intended Audience :: Developers',
 		'Topic :: Software Development :: Build Tools',
 		'License :: OSI Approved :: MIT License', 

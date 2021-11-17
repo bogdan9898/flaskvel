@@ -1,5 +1,5 @@
 from flask import Flask, request
-from flaskvel import Flaskvel, validate, BodyFormats, ValidationException
+from flaskvel import Flaskvel, validate, validate_no_validator, BodyFormats, ValidationException
 import flaskvel
 
 from MyValidator import MyValidator
@@ -39,14 +39,24 @@ def my_handler(field_name, err_msg_params, **kwargs):
 Flaskvel.register_rule('my_custom_rule', my_handler)
 
 
-@app.route("/", methods=["POST"])
+@app.route("/form", methods=["POST"])
 @validate(MyValidator, BodyFormats.FORM)
-def hello_world():
+def hello_world_form():
 	return "Hello world!"
 
-@app.route("/size", methods=["POST"])
+@app.route("/form/size", methods=["POST"])
 @validate(SizeValidator, BodyFormats.FORM)
-def size_testing():
+def size_testing_form():
+	return "Hello world!"
+
+@app.route("/json", methods=["POST"])
+@validate(MyValidator, BodyFormats.JSON)
+def hello_world_json():
+	return "Hello world!"
+
+@app.route("/json/size", methods=["POST"])
+@validate(SizeValidator, BodyFormats.JSON)
+def size_testing_json():
 	return "Hello world!"
 
 @app.route("/test", methods=["POST"])
@@ -56,7 +66,7 @@ def test():
 
 @app.route("/validation/manual", methods=["POST"])
 def manualValidation():
-	validator = CustomValidator(request=request, body_format=BodyFormats.FORM)
+	validator = CustomValidator(request=request, expected_body_format=BodyFormats.FORM)
 	try:
 		validator.validate()
 		return "Hello from \"not an automated\" world!"
@@ -68,6 +78,23 @@ def manualValidation():
 		# ...
 	return "Sorry, your sent the wrong body."
 
+@app.route("/novalidator", methods=["POST", "PUT"])
+@validate_no_validator(
+	rules={
+		"username": "string",
+		"password": "string|confirmed|min:8|max:16"
+	},
+	messages={
+		"username.string": "Username must be a string",
+		"password.string": "Password must be a string",
+		"password.cofirmed": "The confirmed password does not match",
+		"password.min": "The password must be between 8-16 characters long",
+		"password.max": "The password must be between 8-16 characters long",
+	},
+	expected_body_format=BodyFormats.ANY,
+	run_on_methods="POST|PUT")
+def noValidator():
+	return "Hello word!"
+
 if __name__ == "__main__":
 	app.run()
-

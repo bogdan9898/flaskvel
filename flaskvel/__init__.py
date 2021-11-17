@@ -1,4 +1,4 @@
-from .Validator import validate, Validator
+from .Validator import Validator, validate, validate_no_validator 
 from .ParsedRule import ParsedRule
 from .Constants.BodyFormat import BodyFormats
 from .Constants.RulesPredicates import RulesPredicates as Rules

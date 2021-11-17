@@ -3,3 +3,4 @@ my_env/
 **/__pycache__/
 dist/
 flaskvel.egg-info/
+.venv

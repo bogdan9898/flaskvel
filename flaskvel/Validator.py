@@ -10,9 +10,9 @@ from .ParsedRule import ParsedRule
 from .Exceptions.ValidationException import ValidationException
 
 class Validator():
-	def __init__(self, request, body_format=BodyFormats.ANY):
+	def __init__(self, request, expected_body_format=BodyFormats.ANY):
 		self._request = request
-		self._body_format = body_format
+		self._expected_body_format = expected_body_format
 		self._parsed_rules = {}
 		# override these 2 attributes in your own implemenation of validator #
 		self.rules = {}
@@ -46,14 +46,14 @@ class Validator():
 		return True
 
 	def _validate_body_format(self):
-		if self._body_format == BodyFormats.ANY:
+		if self._expected_body_format == BodyFormats.ANY:
 			return True
-		elif self._body_format == BodyFormats.JSON:
+		elif self._expected_body_format == BodyFormats.JSON:
 			if not self._request.is_json:
 				time.sleep(0.5) # this fixes a bug that triggers "write EPIPE" on client side
 				raise Flaskvel._exception_class("Request body is not a valid json")
 			return True
-		elif self._body_format == BodyFormats.FORM:
+		elif self._expected_body_format == BodyFormats.FORM:
 			if self._request.is_json:
 				time.sleep(0.5) # this fixes a bug that triggers "write EPIPE" on client side
 				raise Flaskvel._exception_class("Request body is not a valid form")
@@ -62,14 +62,27 @@ class Validator():
 			raise Flaskvel._exception_class("Invalid body format")
 
 # methods: {"GET", "POST", "PUT", "DELETE"....}
-# methods=PipedString or Array or '*'
-# methods: methods for which the Flaskvel should validate the body; default = "*"(all methods)
-def validate(validator_class, body_format=BodyFormats.ANY, methods="*"):
+# methods can be PipedString or Array or '*'
+def validate(validator_class, expected_body_format=BodyFormats.ANY, run_on_methods="*"):
 	def decorator(func):
 		@wraps(func)
 		def wrapper(*args, **kwargs):
-			if methods == "*" or request.method in methods:
-				validator_class(request, body_format).validate()
+			if run_on_methods == "*" or request.method in run_on_methods:
+				validator_class(request, expected_body_format).validate()
+			# else: validation ignored for other methods
+			return func(*args, **kwargs)
+		return wrapper
+	return decorator
+
+def validate_no_validator(rules, messages={}, expected_body_format=BodyFormats.ANY, run_on_methods="*"):
+	def decorator(func):
+		@wraps(func)
+		def wrapper(*args, **kwargs):
+			if run_on_methods == "*" or request.method in run_on_methods:
+				validator = Validator(request, expected_body_format)
+				validator.rules = rules
+				validator.messages = messages
+				validator.validate()
 			# else: validation ignored for other methods
 			return func(*args, **kwargs)
 		return wrapper
